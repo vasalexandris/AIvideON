@@ -202,7 +202,7 @@ export function App() {
     setCurrentSynthesis(demo);
     setQuery(demo.query);
     setActiveClipId(demo.clips[0]?.id ?? null);
-    setAutoPlayOnClipChange(false);
+    setAutoPlayOnClipChange(true);
     setPipeline({ stage: 'ready', message: '', videoProgress: [] });
   };
 

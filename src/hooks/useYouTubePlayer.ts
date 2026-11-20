@@ -113,11 +113,15 @@ export function useYouTubePlayer({
 
   const endedFiredForClipRef = useRef<string | null>(null);
 
+  const hasClip = Boolean(activeClip);
+
   useEffect(() => {
+    if (!hasClip) return;
     let mounted = true;
 
     loadYouTubeIframeApi().then(() => {
       if (!mounted || !containerRef.current || !window.YT?.Player) return;
+      if (playerRef.current) return;
 
       const playerDiv = document.createElement('div');
       containerRef.current.innerHTML = '';
@@ -130,11 +134,12 @@ export function useYouTubePlayer({
         height: '100%',
         videoId: initialClip?.videoId,
         playerVars: {
-          autoplay: 0,
+          autoplay: autoPlayRef.current ? 1 : 0,
           controls: 1,
           rel: 0,
           modestbranding: 1,
           playsinline: 1,
+          origin: window.location.origin,
           start: initialClip?.startSeconds,
           end: initialClip?.endSeconds,
         },
@@ -145,6 +150,13 @@ export function useYouTubePlayer({
             event.target.setPlaybackRate(playbackRateRef.current);
             if (initialClip) {
               setCurrentSeconds(initialClip.startSeconds);
+              if (autoPlayRef.current) {
+                event.target.loadVideoById({
+                  videoId: initialClip.videoId,
+                  startSeconds: initialClip.startSeconds,
+                  endSeconds: initialClip.endSeconds,
+                });
+              }
             }
           },
           onStateChange: (event) => {
@@ -181,8 +193,9 @@ export function useYouTubePlayer({
         playerRef.current = null;
       }
       setIsReady(false);
+      setIsPlaying(false);
     };
-  }, []);
+  }, [hasClip]);
 
   // Load new clip whenever activeClip changes
   useEffect(() => {
