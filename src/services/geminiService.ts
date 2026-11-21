@@ -28,6 +28,32 @@ function getClient(apiKey: string): GoogleGenAI {
   });
 }
 
+async function callWithRetry<T>(
+  fn: (activeModel: string) => Promise<T>,
+  primaryModel: string
+): Promise<T> {
+  const modelsToTry =
+    primaryModel === 'gemini-3.8-flash'
+      ? ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite']
+      : [primaryModel, primaryModel];
+
+  let lastErr: unknown;
+  for (let i = 0; i < modelsToTry.length; i++) {
+    try {
+      return await fn(modelsToTry[i]);
+    } catch (err) {
+      lastErr = err;
+      const msg = err instanceof Error ? err.message : String(err);
+      const isTransient = msg.includes('503') || msg.includes('429') || msg.includes('UNAVAILABLE');
+      if (!isTransient || i === modelsToTry.length - 1) {
+        throw err;
+      }
+      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 function languageInstruction(language: Language): string {
   return language === 'el'
     ? 'Write all titles, explanations, summaries, and takeaways in natural, clear Greek (Ελληνικά). Keep technical AI/programming terms in English where standard.'
@@ -100,56 +126,60 @@ Instructions:
 5. In "aiExplanation", explain WHY this segment is useful for the user's goal and what to pay attention to.
 6. In "keyTakeaways", list 2-3 concise bullet points from that segment.`;
 
-  const response = await ai.models.generateContent({
-    model,
-    contents: [
-      {
-        fileData: {
-          fileUri: video.url,
-        },
-      },
-      {
-        text: prompt,
-      },
-    ],
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          isRelevant: { type: Type.BOOLEAN },
-          segments: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                startSeconds: { type: Type.INTEGER },
-                endSeconds: { type: Type.INTEGER },
-                clipTitle: { type: Type.STRING },
-                aiExplanation: { type: Type.STRING },
-                transcriptExcerpt: { type: Type.STRING },
-                keyTakeaways: {
-                  type: Type.ARRAY,
-                  items: { type: Type.STRING },
-                },
-                relevanceScore: { type: Type.INTEGER },
-              },
-              required: [
-                'startSeconds',
-                'endSeconds',
-                'clipTitle',
-                'aiExplanation',
-                'transcriptExcerpt',
-                'keyTakeaways',
-                'relevanceScore',
-              ],
+  const response = await callWithRetry(
+    (activeModel) =>
+      ai.models.generateContent({
+        model: activeModel,
+        contents: [
+          {
+            fileData: {
+              fileUri: video.url,
             },
           },
+          {
+            text: prompt,
+          },
+        ],
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              isRelevant: { type: Type.BOOLEAN },
+              segments: {
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    startSeconds: { type: Type.INTEGER },
+                    endSeconds: { type: Type.INTEGER },
+                    clipTitle: { type: Type.STRING },
+                    aiExplanation: { type: Type.STRING },
+                    transcriptExcerpt: { type: Type.STRING },
+                    keyTakeaways: {
+                      type: Type.ARRAY,
+                      items: { type: Type.STRING },
+                    },
+                    relevanceScore: { type: Type.INTEGER },
+                  },
+                  required: [
+                    'startSeconds',
+                    'endSeconds',
+                    'clipTitle',
+                    'aiExplanation',
+                    'transcriptExcerpt',
+                    'keyTakeaways',
+                    'relevanceScore',
+                  ],
+                },
+              },
+            },
+            required: ['isRelevant', 'segments'],
+          },
         },
-        required: ['isRelevant', 'segments'],
-      },
-    },
-  });
+      }),
+    model
+  );
 
   const parsed = JSON.parse(response.text || '{}');
   if (!parsed.isRelevant || !Array.isArray(parsed.segments)) {
@@ -204,9 +234,11 @@ export async function synthesizeClipsIntoLesson(
   const bridgeMap = new Map<string, { bridgeQuestion: string; bridgeText: string }>();
 
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: `You are an expert documentary director, curriculum designer, and video editor.
+    const response = await callWithRetry(
+      (activeModel) =>
+        ai.models.generateContent({
+          model: activeModel,
+          contents: `You are an expert documentary director, curriculum designer, and video editor.
 The user asked: "${userQuery}"
 Below are candidate video clips extracted from multiple YouTube videos.
 Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant clips and order them into the most logical, educational viewing sequence (e.g. Overview/Concept -> Implementation/Demo -> Pro Tips/Pitfalls) so watching them back-to-back feels like one cohesive documentary.
@@ -219,44 +251,46 @@ ${languageInstruction(language)}
 
 Candidate clips:
 ${JSON.stringify(candidateSummaries, null, 2)}`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            synthesisTitle: { type: Type.STRING },
-            executiveSummary: { type: Type.STRING },
-            keyInsights: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            orderedClipIds: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-            },
-            clipTransitions: {
-              type: Type.ARRAY,
-              items: {
-                type: Type.OBJECT,
-                properties: {
-                  tempId: { type: Type.STRING },
-                  bridgeQuestion: { type: Type.STRING },
-                  bridgeText: { type: Type.STRING },
+          config: {
+            responseMimeType: 'application/json',
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                synthesisTitle: { type: Type.STRING },
+                executiveSummary: { type: Type.STRING },
+                keyInsights: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
                 },
-                required: ['tempId', 'bridgeQuestion', 'bridgeText'],
+                orderedClipIds: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                },
+                clipTransitions: {
+                  type: Type.ARRAY,
+                  items: {
+                    type: Type.OBJECT,
+                    properties: {
+                      tempId: { type: Type.STRING },
+                      bridgeQuestion: { type: Type.STRING },
+                      bridgeText: { type: Type.STRING },
+                    },
+                    required: ['tempId', 'bridgeQuestion', 'bridgeText'],
+                  },
+                },
               },
+              required: [
+                'synthesisTitle',
+                'executiveSummary',
+                'keyInsights',
+                'orderedClipIds',
+                'clipTransitions',
+              ],
             },
           },
-          required: [
-            'synthesisTitle',
-            'executiveSummary',
-            'keyInsights',
-            'orderedClipIds',
-            'clipTransitions',
-          ],
-        },
-      },
-    });
+        }),
+      model
+    );
 
     const parsed = JSON.parse(response.text || '{}');
     if (parsed.synthesisTitle) synthesisTitle = parsed.synthesisTitle;
