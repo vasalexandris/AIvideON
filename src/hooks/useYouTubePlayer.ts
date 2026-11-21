@@ -44,6 +44,7 @@ interface YTPlayerInstance {
   pauseVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead?: boolean) => void;
   setPlaybackRate: (rate: number) => void;
+  setVolume: (volume: number) => void;
   getCurrentTime: () => number;
   getPlayerState: () => number;
   destroy: () => void;
@@ -84,6 +85,7 @@ interface UseYouTubePlayerProps {
   activeClip: SynthesizedClip | null;
   autoPlayOnClipChange: boolean;
   playbackRate: number;
+  suppressEndCheck?: boolean;
   onClipEnded: () => void;
 }
 
@@ -91,12 +93,14 @@ export function useYouTubePlayer({
   activeClip,
   autoPlayOnClipChange,
   playbackRate,
+  suppressEndCheck = false,
   onClipEnded,
 }: UseYouTubePlayerProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayerInstance | null>(null);
   const [isReady, setIsReady] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isFadingOut, setIsFadingOut] = useState(false);
   const [currentSeconds, setCurrentSeconds] = useState(0);
 
   const onClipEndedRef = useRef(onClipEnded);
@@ -111,7 +115,11 @@ export function useYouTubePlayer({
   const playbackRateRef = useRef(playbackRate);
   playbackRateRef.current = playbackRate;
 
+  const suppressEndCheckRef = useRef(suppressEndCheck);
+  suppressEndCheckRef.current = suppressEndCheck;
+
   const endedFiredForClipRef = useRef<string | null>(null);
+  const clipLoadedAtRef = useRef<number>(0);
 
   const hasClip = Boolean(activeClip);
 
@@ -128,6 +136,7 @@ export function useYouTubePlayer({
       containerRef.current.appendChild(playerDiv);
 
       const initialClip = activeClipRef.current;
+      clipLoadedAtRef.current = Date.now();
 
       playerRef.current = new window.YT.Player(playerDiv, {
         width: '100%',
@@ -148,6 +157,7 @@ export function useYouTubePlayer({
             if (!mounted) return;
             setIsReady(true);
             event.target.setPlaybackRate(playbackRateRef.current);
+            event.target.setVolume(100);
             if (initialClip) {
               setCurrentSeconds(initialClip.startSeconds);
               if (autoPlayRef.current) {
@@ -172,8 +182,15 @@ export function useYouTubePlayer({
               setIsPlaying(false);
             } else if (state === (YTState?.ENDED ?? 0)) {
               setIsPlaying(false);
-              if (clip && endedFiredForClipRef.current !== clip.id) {
+              const elapsedSinceLoad = Date.now() - clipLoadedAtRef.current;
+              if (
+                clip &&
+                !suppressEndCheckRef.current &&
+                elapsedSinceLoad > 1200 &&
+                endedFiredForClipRef.current !== clip.id
+              ) {
                 endedFiredForClipRef.current = clip.id;
+                setIsFadingOut(false);
                 onClipEndedRef.current();
               }
             }
@@ -194,6 +211,7 @@ export function useYouTubePlayer({
       }
       setIsReady(false);
       setIsPlaying(false);
+      setIsFadingOut(false);
     };
   }, [hasClip]);
 
@@ -202,7 +220,15 @@ export function useYouTubePlayer({
     if (!isReady || !playerRef.current || !activeClip) return;
 
     endedFiredForClipRef.current = null;
+    clipLoadedAtRef.current = Date.now();
+    setIsFadingOut(false);
     setCurrentSeconds(activeClip.startSeconds);
+
+    try {
+      playerRef.current.setVolume(100);
+    } catch {
+      // ignore
+    }
 
     const payload = {
       videoId: activeClip.videoId,
@@ -228,41 +254,74 @@ export function useYouTubePlayer({
     }
   }, [playbackRate, isReady]);
 
-  // Poll current time to drive composite timeline and reliable endSeconds transition
+  // Poll every 100ms for smooth audio fade-in/fade-out, visual fade, and reliable endSeconds transition
   useEffect(() => {
     if (!isReady) return;
+
+    const FADE_OUT_SEC = 1.4;
+    const FADE_IN_SEC = 0.8;
 
     const interval = window.setInterval(() => {
       const player = playerRef.current;
       const clip = activeClipRef.current;
       if (!player || !clip) return;
+      if (suppressEndCheckRef.current) return;
+
+      const elapsedSinceLoad = Date.now() - clipLoadedAtRef.current;
+      if (elapsedSinceLoad < 900) return;
 
       try {
-        const time = player.getCurrentTime();
-        if (typeof time === 'number' && !Number.isNaN(time)) {
-          setCurrentSeconds(time);
+        const state = player.getPlayerState();
+        const isCurrentlyPlaying = state === (window.YT?.PlayerState?.PLAYING ?? 1);
+        if (!isCurrentlyPlaying) return;
 
-          const state = player.getPlayerState();
-          const isCurrentlyPlaying = state === (window.YT?.PlayerState?.PLAYING ?? 1);
-          if (
-            isCurrentlyPlaying &&
-            time >= clip.endSeconds - 0.2 &&
-            endedFiredForClipRef.current !== clip.id
-          ) {
-            endedFiredForClipRef.current = clip.id;
-            onClipEndedRef.current();
-          }
+        const time = player.getCurrentTime();
+        if (typeof time !== 'number' || Number.isNaN(time)) return;
+
+        setCurrentSeconds(time);
+
+        const clipDuration = Math.max(1, clip.endSeconds - clip.startSeconds);
+        const fromStart = time - clip.startSeconds;
+        const remaining = clip.endSeconds - time;
+
+        // Smooth audio fade-in at the beginning of the clip
+        if (clipDuration > 3 && fromStart >= 0 && fromStart < FADE_IN_SEC) {
+          const vol = Math.min(100, Math.max(15, Math.round((fromStart / FADE_IN_SEC) * 100)));
+          player.setVolume(vol);
+        } else if (clipDuration > 4 && remaining <= FADE_OUT_SEC && remaining > 0) {
+          // Smooth audio + visual fade-out at the end of the clip
+          const ratio = Math.max(0, Math.min(1, remaining / FADE_OUT_SEC));
+          player.setVolume(Math.round(ratio * 100));
+          setIsFadingOut(true);
+        } else if (remaining > FADE_OUT_SEC) {
+          player.setVolume(100);
+          setIsFadingOut(false);
+        }
+
+        if (remaining <= 0.15 && endedFiredForClipRef.current !== clip.id) {
+          endedFiredForClipRef.current = clip.id;
+          player.setVolume(0);
+          player.pauseVideo();
+          setIsFadingOut(false);
+          onClipEndedRef.current();
         }
       } catch {
         // ignore transient player read errors
       }
-    }, 200);
+    }, 100);
 
     return () => window.clearInterval(interval);
   }, [isReady]);
 
   const play = useCallback(() => {
-    playerRef.current?.playVideo();
+    clipLoadedAtRef.current = Date.now();
+    setIsFadingOut(false);
+    try {
+      playerRef.current?.setVolume(20);
+      playerRef.current?.playVideo();
+    } catch {
+      // ignore
+    }
   }, []);
 
   const pause = useCallback(() => {
@@ -273,12 +332,15 @@ export function useYouTubePlayer({
     if (isPlaying) {
       playerRef.current?.pauseVideo();
     } else {
+      playerRef.current?.setVolume(100);
       playerRef.current?.playVideo();
     }
   }, [isPlaying]);
 
   const seekToSecond = useCallback((seconds: number) => {
     if (!playerRef.current) return;
+    setIsFadingOut(false);
+    playerRef.current.setVolume(100);
     playerRef.current.seekTo(seconds, true);
     setCurrentSeconds(seconds);
   }, []);
@@ -287,6 +349,7 @@ export function useYouTubePlayer({
     containerRef,
     isReady,
     isPlaying,
+    isFadingOut,
     currentSeconds,
     play,
     pause,

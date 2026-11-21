@@ -14,6 +14,7 @@ interface CompositePlayerProps {
   docSlidesEnabled: boolean;
   isShowingSlide: boolean;
   isSlideLeaving: boolean;
+  isFadingOut: boolean;
   slideProgressPct: number;
   playbackRate: number;
   t: Translations;
@@ -39,6 +40,7 @@ export function CompositePlayer({
   docSlidesEnabled,
   isShowingSlide,
   isSlideLeaving,
+  isFadingOut,
   slideProgressPct,
   playbackRate,
   t,
@@ -97,6 +99,7 @@ export function CompositePlayer({
 
       <div className="player-viewport">
         <div ref={containerRef} />
+        <div className={`player-fade-curtain ${isFadingOut ? 'active' : ''}`} />
 
         {isShowingSlide && activeClip && (
           <div

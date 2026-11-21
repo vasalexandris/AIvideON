@@ -1115,6 +1115,21 @@ a {
   }
 }
 
+/* Smooth video fade-to-black curtain before documentary slide */
+.player-fade-curtain {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  background: #050608;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease-in-out;
+}
+
+.player-fade-curtain.active {
+  opacity: 1;
+}
+
 /* Documentary Interstitial Slide Overlay inside 16:9 Player Viewport */
 .doc-slide-overlay {
   position: absolute;

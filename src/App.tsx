@@ -164,6 +164,7 @@ export function App() {
   const {
     containerRef,
     isPlaying,
+    isFadingOut,
     currentSeconds,
     togglePlay,
     seekToSecond,
@@ -173,6 +174,7 @@ export function App() {
     activeClip,
     autoPlayOnClipChange,
     playbackRate,
+    suppressEndCheck: isShowingSlide,
     onClipEnded: handleClipEnded,
   });
 
@@ -538,6 +540,7 @@ export function App() {
                   docSlidesEnabled={docSlidesEnabled}
                   isShowingSlide={isShowingSlide}
                   isSlideLeaving={isSlideLeaving}
+                  isFadingOut={isFadingOut}
                   slideProgressPct={slideProgressPct}
                   playbackRate={playbackRate}
                   t={t}
