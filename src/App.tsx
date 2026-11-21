@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClipContextCard } from './components/ClipContextCard';
-import { CompositePlayer } from './components/CompositePlayer';
+import { CompositePlayer, type SlidePhase } from './components/CompositePlayer';
 import { Header } from './components/Header';
 import { HistoryDrawer } from './components/HistoryDrawer';
 import { PromptStudio } from './components/PromptStudio';
@@ -22,9 +22,11 @@ import {
 import type {
   AppSettings,
   DiscoveryMode,
+  DocumentarySlide,
   Language,
   PipelineStatus,
   SynthesisResult,
+  SynthesizedClip,
   YouTubeVideoCandidate,
 } from './types';
 
@@ -39,6 +41,31 @@ const DEFAULT_SETTINGS: AppSettings = {
   maxVideosToAnalyze: 4,
   targetClipCount: 6,
 };
+
+function getSlidesForClip(clip: SynthesizedClip | null | undefined): DocumentarySlide[] {
+  if (!clip) return [];
+  if (clip.introSlides && clip.introSlides.length > 0) {
+    return clip.introSlides;
+  }
+  if (clip.bridgeQuestion || clip.bridgeText) {
+    return [
+      {
+        kind: 'narrative',
+        headline: clip.bridgeQuestion || clip.clipTitle,
+        body: clip.bridgeText || undefined,
+      },
+    ];
+  }
+  return [];
+}
+
+function computeSlideDurationMs(slide: DocumentarySlide): number {
+  const words = `${slide.headline || ''} ${slide.body || ''}`
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean).length;
+  return Math.min(7200, Math.max(3800, 2600 + words * 230));
+}
 
 export function App() {
   const [language, setLanguage] = useState<Language>(() => {
@@ -84,14 +111,30 @@ export function App() {
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [playbackRate, setPlaybackRate] = useState(1);
   const [docSlidesEnabled, setDocSlidesEnabled] = useState(true);
-  const [isShowingSlide, setIsShowingSlide] = useState(false);
-  const [isSlideLeaving, setIsSlideLeaving] = useState(false);
+
+  // Multi-slide documentary sequence state
+  const [slideQueue, setSlideQueue] = useState<DocumentarySlide[]>([]);
+  const [slideIndex, setSlideIndex] = useState(0);
+  const [slideMode, setSlideMode] = useState<'none' | 'intro' | 'outro'>('none');
+  const [slidePhase, setSlidePhase] = useState<SlidePhase>('visible');
   const [slideProgressPct, setSlideProgressPct] = useState(0);
+  const transitionTimeoutRef = useRef<number | null>(null);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   const t = translations[language];
+
+  const clearPendingTransition = useCallback(() => {
+    if (transitionTimeoutRef.current !== null) {
+      window.clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => clearPendingTransition();
+  }, [clearPendingTransition]);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_LANG_KEY, language);
@@ -132,34 +175,74 @@ export function App() {
   }, [enabledClips, activeClipId]);
 
   const activeClip = activeClipIndex >= 0 ? enabledClips[activeClipIndex] : null;
+  const activeSlide = slideMode !== 'none' ? slideQueue[slideIndex] ?? null : null;
+  const isShowingSlide = Boolean(activeSlide);
+
+  const featuredCreators = useMemo(() => {
+    if (!currentSynthesis) return [];
+    return Array.from(new Set(currentSynthesis.clips.filter((c) => c.enabled).map((c) => c.channelTitle)));
+  }, [currentSynthesis]);
+
+  const startSlideSequence = useCallback(
+    (slides: DocumentarySlide[], modeType: 'intro' | 'outro') => {
+      clearPendingTransition();
+      setSlideQueue(slides);
+      setSlideIndex(0);
+      setSlideMode(modeType);
+      setSlidePhase('visible');
+      setSlideProgressPct(0);
+    },
+    [clearPendingTransition]
+  );
+
+  const dismissSlidesImmediately = useCallback(() => {
+    clearPendingTransition();
+    setSlideQueue([]);
+    setSlideIndex(0);
+    setSlideMode('none');
+    setSlidePhase('visible');
+    setSlideProgressPct(0);
+  }, [clearPendingTransition]);
 
   const triggerClipWithOptionalSlide = useCallback(
-    (clipId: string, showSlideIfEnabled = true) => {
-      const target = enabledClips.find((c) => c.id === clipId);
-      const hasBridge = Boolean(target?.bridgeText || target?.bridgeQuestion);
+    (clipId: string, showSlideIfEnabled = true, clipsSource = enabledClips) => {
+      clearPendingTransition();
+      const target = clipsSource.find((c) => c.id === clipId);
+      const slides = getSlidesForClip(target);
 
-      if (showSlideIfEnabled && docSlidesEnabled && hasBridge) {
+      if (showSlideIfEnabled && docSlidesEnabled && slides.length > 0) {
         setAutoPlayOnClipChange(false);
         setActiveClipId(clipId);
-        setIsSlideLeaving(false);
-        setSlideProgressPct(0);
-        setIsShowingSlide(true);
+        startSlideSequence(slides, 'intro');
       } else {
-        setIsShowingSlide(false);
-        setIsSlideLeaving(false);
+        dismissSlidesImmediately();
         setAutoPlayOnClipChange(true);
         setActiveClipId(clipId);
       }
     },
-    [enabledClips, docSlidesEnabled]
+    [enabledClips, docSlidesEnabled, clearPendingTransition, startSlideSequence, dismissSlidesImmediately]
   );
 
   const handleClipEnded = useCallback(() => {
     if (!autoAdvance) return;
     if (activeClipIndex >= 0 && activeClipIndex < enabledClips.length - 1) {
       triggerClipWithOptionalSlide(enabledClips[activeClipIndex + 1].id, true);
+    } else if (
+      activeClipIndex === enabledClips.length - 1 &&
+      docSlidesEnabled &&
+      currentSynthesis?.outroSlide
+    ) {
+      startSlideSequence([currentSynthesis.outroSlide], 'outro');
     }
-  }, [autoAdvance, activeClipIndex, enabledClips, triggerClipWithOptionalSlide]);
+  }, [
+    autoAdvance,
+    activeClipIndex,
+    enabledClips,
+    docSlidesEnabled,
+    currentSynthesis,
+    triggerClipWithOptionalSlide,
+    startSlideSequence,
+  ]);
 
   const {
     containerRef,
@@ -179,29 +262,57 @@ export function App() {
   });
 
   const handlePlayNowFromSlide = useCallback(() => {
-    setIsSlideLeaving(true);
+    clearPendingTransition();
+    if (slideMode === 'outro') {
+      if (enabledClips.length > 0) {
+        triggerClipWithOptionalSlide(enabledClips[0].id, true);
+      } else {
+        dismissSlidesImmediately();
+      }
+      return;
+    }
+
+    setSlidePhase('fading-out');
     setSlideProgressPct(100);
     play();
-    window.setTimeout(() => {
-      setIsShowingSlide(false);
-      setIsSlideLeaving(false);
-    }, 700);
-  }, [play]);
+    transitionTimeoutRef.current = window.setTimeout(() => {
+      dismissSlidesImmediately();
+    }, 750);
+  }, [
+    clearPendingTransition,
+    slideMode,
+    enabledClips,
+    triggerClipWithOptionalSlide,
+    dismissSlidesImmediately,
+    play,
+  ]);
 
-  // Countdown timer for Documentary Interstitial Slide (5.2s) with smooth cross-fade out
+  // Multi-slide documentary timer: smoothly cross-fades between sequential slides, then cross-fades into video
   useEffect(() => {
-    if (!isShowingSlide || isSlideLeaving) return;
+    if (slideMode !== 'intro' || !activeSlide || slidePhase !== 'visible') return;
 
-    const SLIDE_DURATION_MS = 5200;
+    const durationMs = computeSlideDurationMs(activeSlide);
     const TICK_MS = 100;
-    const step = (TICK_MS / SLIDE_DURATION_MS) * 100;
+    const step = (TICK_MS / durationMs) * 100;
 
     const timer = window.setInterval(() => {
       setSlideProgressPct((prev) => {
         const next = prev + step;
         if (next >= 100) {
           window.clearInterval(timer);
-          handlePlayNowFromSlide();
+
+          if (slideIndex < slideQueue.length - 1) {
+            // Smooth cross-fade between Slide 1 -> Slide 2 on the same dark canvas
+            setSlidePhase('fading-between');
+            transitionTimeoutRef.current = window.setTimeout(() => {
+              setSlideIndex((i) => i + 1);
+              setSlideProgressPct(0);
+              setSlidePhase('visible');
+            }, 460);
+          } else {
+            // Final intro slide finished -> cross-fade out into the video with audio fade-in
+            handlePlayNowFromSlide();
+          }
           return 100;
         }
         return next;
@@ -209,15 +320,14 @@ export function App() {
     }, TICK_MS);
 
     return () => window.clearInterval(timer);
-  }, [isShowingSlide, isSlideLeaving, handlePlayNowFromSlide]);
+  }, [slideMode, activeSlide, slidePhase, slideIndex, slideQueue.length, handlePlayNowFromSlide]);
 
   const handleSelectClip = (index: number, seekOffset?: number) => {
     const target = enabledClips[index];
     if (!target) return;
 
     if (seekOffset !== undefined) {
-      setIsShowingSlide(false);
-      setIsSlideLeaving(false);
+      dismissSlidesImmediately();
       if (target.id === activeClip?.id) {
         seekToSecond(target.startSeconds + seekOffset);
         play();
@@ -254,8 +364,7 @@ export function App() {
     if (clipId === activeClipId) {
       const nextEnabled = updatedClips.find((c) => c.enabled);
       setActiveClipId(nextEnabled ? nextEnabled.id : null);
-      setIsShowingSlide(false);
-      setIsSlideLeaving(false);
+      dismissSlidesImmediately();
     }
   };
 
@@ -271,23 +380,28 @@ export function App() {
     setCurrentSynthesis({ ...currentSynthesis, clips: copy });
   };
 
+  const openSynthesis = useCallback(
+    (result: SynthesisResult) => {
+      clearPendingTransition();
+      setCurrentSynthesis(result);
+      setQuery(result.query);
+      const firstClip = result.clips.find((c) => c.enabled) ?? result.clips[0];
+      setActiveClipId(firstClip?.id ?? null);
+      const slides = getSlidesForClip(firstClip);
+      if (docSlidesEnabled && slides.length > 0) {
+        setAutoPlayOnClipChange(false);
+        startSlideSequence(slides, 'intro');
+      } else {
+        dismissSlidesImmediately();
+        setAutoPlayOnClipChange(true);
+      }
+      setPipeline({ stage: 'ready', message: '', videoProgress: [] });
+    },
+    [clearPendingTransition, docSlidesEnabled, startSlideSequence, dismissSlidesImmediately]
+  );
+
   const handleLoadDemo = () => {
-    const demo = getDemoSynthesis(language);
-    setCurrentSynthesis(demo);
-    setQuery(demo.query);
-    const firstClip = demo.clips[0];
-    setActiveClipId(firstClip?.id ?? null);
-    if (docSlidesEnabled && firstClip && (firstClip.bridgeText || firstClip.bridgeQuestion)) {
-      setAutoPlayOnClipChange(false);
-      setIsSlideLeaving(false);
-      setSlideProgressPct(0);
-      setIsShowingSlide(true);
-    } else {
-      setIsShowingSlide(false);
-      setIsSlideLeaving(false);
-      setAutoPlayOnClipChange(true);
-    }
-    setPipeline({ stage: 'ready', message: '', videoProgress: [] });
+    openSynthesis(getDemoSynthesis(language));
   };
 
   const handleSynthesize = async () => {
@@ -431,20 +545,8 @@ export function App() {
         settings.geminiModel
       );
 
-      setCurrentSynthesis(result);
-      const firstClip = result.clips[0];
-      setActiveClipId(firstClip?.id ?? null);
-      setAutoPlayOnClipChange(false);
-      if (docSlidesEnabled && firstClip && (firstClip.bridgeText || firstClip.bridgeQuestion)) {
-        setIsSlideLeaving(false);
-        setSlideProgressPct(0);
-        setIsShowingSlide(true);
-      } else {
-        setIsShowingSlide(false);
-        setIsSlideLeaving(false);
-      }
       saveToHistory(result);
-      setPipeline({ stage: 'ready', message: '', videoProgress: [] });
+      openSynthesis(result);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       setPipeline({
@@ -473,10 +575,7 @@ export function App() {
         onChangeLanguage={(lang) => {
           setLanguage(lang);
           if (currentSynthesis?.isDemo) {
-            const demo = getDemoSynthesis(lang);
-            setCurrentSynthesis(demo);
-            setQuery(demo.query);
-            setActiveClipId(demo.clips[0]?.id ?? null);
+            openSynthesis(getDemoSynthesis(lang));
           }
         }}
         t={t}
@@ -485,6 +584,7 @@ export function App() {
         onOpenHistory={() => setIsHistoryOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onResetHome={() => {
+          dismissSlidesImmediately();
           setCurrentSynthesis(null);
           setActiveClipId(null);
           setPipeline({ stage: 'idle', message: '', videoProgress: [] });
@@ -538,10 +638,13 @@ export function App() {
                   isPlaying={isPlaying}
                   autoAdvance={autoAdvance}
                   docSlidesEnabled={docSlidesEnabled}
-                  isShowingSlide={isShowingSlide}
-                  isSlideLeaving={isSlideLeaving}
-                  isFadingOut={isFadingOut}
+                  activeSlide={activeSlide}
+                  slideIndex={slideIndex}
+                  slideCount={slideQueue.length}
+                  slidePhase={slidePhase}
                   slideProgressPct={slideProgressPct}
+                  isFadingOut={isFadingOut}
+                  featuredCreators={featuredCreators}
                   playbackRate={playbackRate}
                   t={t}
                   onTogglePlay={togglePlay}
@@ -552,8 +655,7 @@ export function App() {
                   }
                   onReplayClip={() => {
                     if (activeClip) {
-                      setIsShowingSlide(false);
-                      setIsSlideLeaving(false);
+                      dismissSlidesImmediately();
                       seekToSecond(activeClip.startSeconds);
                       play();
                     }
@@ -599,12 +701,7 @@ export function App() {
         <HistoryDrawer
           items={history}
           t={t}
-          onSelect={(item) => {
-            setCurrentSynthesis(item);
-            setQuery(item.query);
-            setActiveClipId(item.clips.find((c) => c.enabled)?.id ?? item.clips[0]?.id ?? null);
-            setAutoPlayOnClipChange(false);
-          }}
+          onSelect={(item) => openSynthesis(item)}
           onDelete={handleDeleteHistory}
           onClose={() => setIsHistoryOpen(false)}
         />

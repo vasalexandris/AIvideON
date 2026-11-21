@@ -1,5 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import type {
+  DocumentarySlide,
+  DocumentarySlideKind,
   Language,
   SynthesisResult,
   SynthesizedClip,
@@ -143,18 +145,18 @@ export async function analyzeVideoForClips(
     ? `The video total duration is ${video.durationSeconds} seconds. All timestamps MUST be strictly between 0 and ${video.durationSeconds}.`
     : 'Ensure all timestamps are accurate to the actual video timeline.';
 
-  const prompt = `Analyze this YouTube video (both spoken audio/transcript and visual frames/slides/code) in relation to the user's learning goal:
+  const prompt = `Analyze this YouTube video (both spoken audio/transcript and visual frames/scenes/slides/code) as a documentary film researcher for the viewer's prompt:
 "${userQuery}"
 
 ${durationHint}
 ${languageInstruction(language)}
 
 Instructions:
-1. Determine if this video contains genuinely useful, specific information answering the user's goal.
-2. If relevant, extract 1 to 3 of the most valuable, self-contained segments (each ideally 20 to 120 seconds long) where the creator explains or demonstrates key points.
-3. Provide exact startSeconds and endSeconds as integers (in seconds).
-4. In "transcriptExcerpt", quote or closely paraphrase what the creator says/shows in that exact segment.
-5. In "aiExplanation", explain WHY this segment is useful for the user's goal and what to pay attention to.
+1. Determine if this video contains genuinely useful spoken explanations OR strong visual footage (e.g. aerial/drone shots, walking tours, live demos, diagrams) that helps answer or illustrate any part of the viewer's prompt.
+2. If relevant, extract 1 to 3 of the most valuable, self-contained segments (each ideally 18 to 75 seconds long).
+3. Choose startSeconds and endSeconds carefully on natural sentence pauses or visual scene cuts so clips never feel awkwardly cut off mid-thought.
+4. In "transcriptExcerpt", quote or closely describe what is being said or visually shown in that exact segment.
+5. In "aiExplanation", explain what specific part of the viewer's question this segment answers or illustrates.
 6. In "keyTakeaways", list 2-3 concise bullet points from that segment.`;
 
   const response = await callWithRetry(
@@ -221,9 +223,9 @@ Instructions:
 
   return parsed.segments
     .map((seg: ExtractedSegment, idx: number): RawClipCandidate | null => {
-      const start = Math.max(0, Math.min(Math.floor(seg.startSeconds || 0), maxDur - 5));
-      const end = Math.max(start + 5, Math.min(Math.floor(seg.endSeconds || start + 30), maxDur));
-      if (end - start < 5) return null;
+      const start = Math.max(0, Math.min(Math.floor(seg.startSeconds || 0), maxDur - 8));
+      const end = Math.max(start + 8, Math.min(Math.floor(seg.endSeconds || start + 30), maxDur));
+      if (end - start < 8) return null;
 
       return {
         ...seg,
@@ -234,6 +236,13 @@ Instructions:
       };
     })
     .filter((c: RawClipCandidate | null): c is RawClipCandidate => c !== null);
+}
+
+function normalizeSlideKind(kind?: string): DocumentarySlideKind {
+  if (kind === 'title' || kind === 'question' || kind === 'narrative' || kind === 'outro') {
+    return kind;
+  }
+  return 'narrative';
 }
 
 export async function synthesizeClipsIntoLesson(
@@ -255,6 +264,7 @@ export async function synthesizeClipsIntoLesson(
     endSeconds: c.endSeconds,
     clipTitle: c.clipTitle,
     aiExplanation: c.aiExplanation,
+    transcriptExcerpt: c.transcriptExcerpt,
     relevanceScore: c.relevanceScore,
   }));
 
@@ -262,22 +272,31 @@ export async function synthesizeClipsIntoLesson(
   let synthesisTitle = userQuery;
   let executiveSummary = '';
   let keyInsights: string[] = [];
-  const bridgeMap = new Map<string, { bridgeQuestion: string; bridgeText: string }>();
+  const slidesMap = new Map<string, DocumentarySlide[]>();
+  let outroSlide: DocumentarySlide | undefined;
 
   try {
     const response = await callWithRetry(
       (activeModel) =>
         ai.models.generateContent({
           model: activeModel,
-          contents: `You are an acclaimed documentary film director, narrator, and editor.
-The viewer asked to explore: "${userQuery}"
+          contents: `You are an acclaimed documentary film director, essayist, narrator, and editor.
+The viewer asked: "${userQuery}"
 
-Below are raw video segments extracted from YouTube. Act like a real film editor:
-1. Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant shots/segments and order them with cinematic pacing (e.g., Establishing/Wide Shot or Hook -> Historical/Technical Context -> Close-up/Detail or Action -> Memorable Finale).
-2. For EACH selected clip in orderedClipIds, write a cinematic title-card / narration slide in "clipTransitions" that will appear on screen right before the footage plays:
-   - "bridgeQuestion": A short, evocative documentary chapter headline or intriguing question (3 to 8 words, e.g., "The Clock That Survived an Empire" or "Walking the Historic Streets of Westminster").
-   - "bridgeText": 1-2 atmospheric, informative documentary narration sentences (with real facts, dates, or storytelling) that set the scene for the footage about to appear.
-   - CRITICAL STYLE RULE: NEVER use meta-language like "This clip shows", "In this video", "The creator explains", "Αυτό το απόσπασμα δείχνει", or "Στο βίντεο βλέπουμε". Write pure, immersive documentary narration as if spoken by a narrator before the shot fades in.
+Think first about how YOU would personally answer this question by breaking it down into a compelling sequence of sub-questions and narrative chapters. Instead of writing a long text essay, you answer through an alternating sequence of **cinematic narration slides** (1 or 2 slides in a row) and **real video segments** that visually or vocally prove, show, or answer what your slide just set up.
+
+Your directing & editing job:
+1. Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant video segments from the candidates below and order them in "orderedClipIds" like a real documentary (Establishing hook -> Context/History/Core concept -> Deeper angles/Contrasts/Experiences -> Memorable climax). Prefer variety across different source videos when possible.
+2. For EACH selected clip in "orderedClipIds", craft its "introSlides" (an array of **1 or 2 sequential slides** that play one after the other right before that footage fades in):
+   - For the **FIRST clip** in the documentary: ALWAYS create **2 sequential slides**:
+     * Slide 1 (kind: "title"): The opening documentary title card — an evocative main title in "headline" and a crisp 1-sentence thesis/hook in "body".
+     * Slide 2 (kind: "question" or "narrative"): Sets up the very first sub-question or opening premise (e.g. a sharp question or a factual/historical introduction) whose answer is the video clip about to play.
+   - For **subsequent clips (#2 to #N)**: Create **1 or 2 sequential slides** that weave a real narrative thread from what the viewer JUST experienced in the previous clip into the next angle!
+     * Use 1 slide for a crisp pivot question or smooth transition (e.g., "Τι πίστευε όμως ο ... για αυτό;" or "Πέρα από την αρχιτεκτονική που μόλις είδαμε, η πόλη κρύβει μια έντονη καθημερινή ζωή...").
+     * Use 2 slides when shifting to a major new sub-question (Slide 1 kind: "narrative" reflects/bridges from the previous beat, Slide 2 kind: "question" poses the intriguing next question right before the footage fades in).
+   - Keep each slide concise and cinematic: "headline" 3–11 words; "body" 0–2 crisp, readable sentences (optional on punchy question slides if the question speaks for itself).
+3. Also create a single closing "outroSlide" (kind: "outro") that appears after the final clip fades out — a memorable concluding thought that ties the whole answer together.
+4. CRITICAL STYLE RULE: NEVER break the fourth wall. NEVER write meta-phrases like "This clip shows", "In this video", "The creator explains", "Αυτό το απόσπασμα δείχνει", "Στο επόμενο βίντεο", or "Ο δημιουργός αναλύει". Write pure, immersive documentary narration with real facts, curiosity, and seamless story flow.
 
 ${languageInstruction(language)}
 
@@ -298,17 +317,37 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
                   type: Type.ARRAY,
                   items: { type: Type.STRING },
                 },
-                clipTransitions: {
+                clipSequences: {
                   type: Type.ARRAY,
                   items: {
                     type: Type.OBJECT,
                     properties: {
                       tempId: { type: Type.STRING },
-                      bridgeQuestion: { type: Type.STRING },
-                      bridgeText: { type: Type.STRING },
+                      introSlides: {
+                        type: Type.ARRAY,
+                        items: {
+                          type: Type.OBJECT,
+                          properties: {
+                            kind: { type: Type.STRING },
+                            eyebrow: { type: Type.STRING },
+                            headline: { type: Type.STRING },
+                            body: { type: Type.STRING },
+                          },
+                          required: ['kind', 'headline'],
+                        },
+                      },
                     },
-                    required: ['tempId', 'bridgeQuestion', 'bridgeText'],
+                    required: ['tempId', 'introSlides'],
                   },
+                },
+                outroSlide: {
+                  type: Type.OBJECT,
+                  properties: {
+                    eyebrow: { type: Type.STRING },
+                    headline: { type: Type.STRING },
+                    body: { type: Type.STRING },
+                  },
+                  required: ['headline', 'body'],
                 },
               },
               required: [
@@ -316,7 +355,8 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
                 'executiveSummary',
                 'keyInsights',
                 'orderedClipIds',
-                'clipTransitions',
+                'clipSequences',
+                'outroSlide',
               ],
             },
           },
@@ -335,15 +375,31 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
         orderedIds = filtered;
       }
     }
-    if (Array.isArray(parsed.clipTransitions)) {
-      for (const tr of parsed.clipTransitions) {
-        if (tr?.tempId && (tr.bridgeQuestion || tr.bridgeText)) {
-          bridgeMap.set(tr.tempId, {
-            bridgeQuestion: tr.bridgeQuestion || '',
-            bridgeText: tr.bridgeText || '',
-          });
+    if (Array.isArray(parsed.clipSequences)) {
+      for (const seq of parsed.clipSequences) {
+        if (seq?.tempId && Array.isArray(seq.introSlides) && seq.introSlides.length > 0) {
+          const normalizedSlides: DocumentarySlide[] = seq.introSlides
+            .slice(0, 2)
+            .filter((s: { headline?: string }) => Boolean(s?.headline))
+            .map((s: { kind?: string; eyebrow?: string; headline: string; body?: string }) => ({
+              kind: normalizeSlideKind(s.kind),
+              eyebrow: s.eyebrow || undefined,
+              headline: s.headline,
+              body: s.body || undefined,
+            }));
+          if (normalizedSlides.length > 0) {
+            slidesMap.set(seq.tempId, normalizedSlides);
+          }
         }
       }
+    }
+    if (parsed.outroSlide?.headline) {
+      outroSlide = {
+        kind: 'outro',
+        eyebrow: parsed.outroSlide.eyebrow || (language === 'el' ? 'ΕΠΙΛΟΓΟΣ' : 'EPILOGUE'),
+        headline: parsed.outroSlide.headline,
+        body: parsed.outroSlide.body || undefined,
+      };
     }
   } catch (err) {
     console.warn('Synthesis ordering fallback:', err);
@@ -354,7 +410,14 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
     .map((id) => candidateMap.get(id))
     .filter((c): c is RawClipCandidate => Boolean(c))
     .map((c, index) => {
-      const bridge = bridgeMap.get(c.tempId);
+      const introSlides = slidesMap.get(c.tempId) || [
+        {
+          kind: index === 0 ? ('title' as const) : ('narrative' as const),
+          headline: c.clipTitle,
+          body: c.aiExplanation,
+        },
+      ];
+      const primarySlide = introSlides[introSlides.length - 1];
       return {
         id: `clip-${Date.now()}-${index}`,
         videoId: c.video.videoId,
@@ -368,8 +431,9 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
         aiExplanation: c.aiExplanation,
         transcriptExcerpt: c.transcriptExcerpt,
         keyTakeaways: c.keyTakeaways || [],
-        bridgeQuestion: bridge?.bridgeQuestion || c.clipTitle,
-        bridgeText: bridge?.bridgeText || c.aiExplanation,
+        bridgeQuestion: primarySlide.headline,
+        bridgeText: primarySlide.body || '',
+        introSlides,
         enabled: true,
       };
     });
@@ -387,6 +451,7 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
     executiveSummary,
     keyInsights,
     clips: finalClips,
+    outroSlide,
     sourceVideos,
   };
 }

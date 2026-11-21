@@ -30,6 +30,15 @@ export interface YouTubeVideoCandidate {
   description?: string;
 }
 
+export type DocumentarySlideKind = 'title' | 'question' | 'narrative' | 'outro';
+
+export interface DocumentarySlide {
+  kind: DocumentarySlideKind;
+  eyebrow?: string;
+  headline: string;
+  body?: string;
+}
+
 export interface SynthesizedClip {
   id: string;
   videoId: string;
@@ -45,6 +54,7 @@ export interface SynthesizedClip {
   keyTakeaways: string[];
   bridgeQuestion?: string;
   bridgeText?: string;
+  introSlides?: DocumentarySlide[];
   enabled: boolean;
 }
 
@@ -57,6 +67,7 @@ export interface SynthesisResult {
   executiveSummary: string;
   keyInsights: string[];
   clips: SynthesizedClip[];
+  outroSlide?: DocumentarySlide;
   sourceVideos: YouTubeVideoCandidate[];
   isDemo?: boolean;
 }

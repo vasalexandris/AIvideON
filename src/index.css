@@ -1123,7 +1123,7 @@ a {
   background: #050608;
   opacity: 0;
   pointer-events: none;
-  transition: opacity 0.9s ease-in-out;
+  transition: opacity 1.1s ease-in-out;
 }
 
 .player-fade-curtain.active {
@@ -1135,7 +1135,7 @@ a {
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: radial-gradient(circle at 50% 35%, #161b24 0%, #050608 100%);
+  background: radial-gradient(circle at 50% 35%, #151a23 0%, #040507 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -1144,8 +1144,8 @@ a {
   text-align: center;
   overflow: hidden;
   opacity: 1;
-  transition: opacity 0.7s ease-in-out;
-  animation: docSlideFadeIn 0.65s ease-out forwards;
+  transition: opacity 0.75s ease-in-out;
+  animation: docSlideFadeIn 0.7s ease-out forwards;
 }
 
 .doc-slide-overlay.leaving {
@@ -1167,15 +1167,15 @@ a {
   inset: -24px;
   background-size: cover;
   background-position: center;
-  filter: blur(28px) saturate(0.55) brightness(0.65);
+  filter: blur(30px) saturate(0.5) brightness(0.6);
   opacity: 0.22;
   pointer-events: none;
-  animation: docKenBurns 6.5s ease-out forwards;
+  animation: docKenBurns 8s ease-out forwards;
 }
 
 @keyframes docKenBurns {
   from {
-    transform: scale(1.08);
+    transform: scale(1.09);
   }
   to {
     transform: scale(1);
@@ -1185,7 +1185,7 @@ a {
 .doc-slide-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.78) 100%);
+  background: radial-gradient(ellipse at center, transparent 30%, rgba(0, 0, 0, 0.84) 100%);
   pointer-events: none;
   z-index: 1;
 }
@@ -1198,13 +1198,21 @@ a {
   flex-direction: column;
   align-items: center;
   gap: 1.05rem;
+  opacity: 1;
+  transition: opacity 0.45s ease-in-out, transform 0.45s ease-in-out;
   animation: docTextRise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.doc-slide-content.fading-between {
+  opacity: 0;
+  transform: translateY(-6px);
+  animation: none;
 }
 
 @keyframes docTextRise {
   from {
     opacity: 0;
-    transform: translateY(10px);
+    transform: translateY(12px);
   }
   to {
     opacity: 1;
@@ -1214,36 +1222,87 @@ a {
 
 .doc-slide-chapter {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
+  font-size: 0.68rem;
   font-weight: 600;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.26em;
   text-transform: uppercase;
   color: rgba(253, 186, 116, 0.85);
 }
 
 .doc-slide-divider {
-  width: 42px;
+  width: 44px;
   height: 1px;
   background: rgba(249, 115, 22, 0.55);
 }
 
 .doc-slide-question {
   margin: 0;
-  font-size: clamp(1.3rem, 3vw, 2.05rem);
+  font-size: clamp(1.3rem, 2.9vw, 2rem);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.24;
   color: #f8fafc;
-  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 2px 28px rgba(0, 0, 0, 0.7);
+}
+
+/* Title card variant */
+.doc-slide-overlay.kind-title .doc-slide-question {
+  font-size: clamp(1.6rem, 3.6vw, 2.45rem);
+  letter-spacing: -0.03em;
+}
+
+/* Question card variant */
+.doc-slide-overlay.kind-question .doc-slide-question {
+  font-style: italic;
+  font-weight: 700;
+  color: #fff7ed;
+}
+
+/* Outro card variant */
+.doc-slide-overlay.kind-outro .doc-slide-question {
+  font-size: clamp(1.35rem, 2.8vw, 1.9rem);
+  font-weight: 700;
 }
 
 .doc-slide-text {
   margin: 0;
   font-size: clamp(0.92rem, 1.55vw, 1.08rem);
-  line-height: 1.68;
+  line-height: 1.7;
   color: #cbd5e1;
-  max-width: 580px;
+  max-width: 590px;
   font-weight: 400;
+}
+
+.doc-slide-credits {
+  margin-top: 0.75rem;
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  color: rgba(148, 163, 184, 0.75);
+}
+
+.doc-slide-dots {
+  position: absolute;
+  bottom: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+}
+
+.doc-slide-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  transition: all 0.3s ease;
+}
+
+.doc-slide-dot.active {
+  width: 18px;
+  border-radius: 999px;
+  background: rgba(249, 115, 22, 0.85);
 }
 
 .doc-slide-progress-track {
@@ -1261,5 +1320,6 @@ a {
   background: rgba(249, 115, 22, 0.65);
   transition: width 0.1s linear;
 }
+
 
 

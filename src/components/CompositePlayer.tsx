@@ -1,7 +1,9 @@
 import { Pause, Play, RotateCcw, SkipBack, SkipForward } from 'lucide-react';
 import type { RefObject } from 'react';
 import { formatTime, type Translations } from '../i18n/translations';
-import type { SynthesizedClip } from '../types';
+import type { DocumentarySlide, SynthesizedClip } from '../types';
+
+export type SlidePhase = 'visible' | 'fading-between' | 'fading-out';
 
 interface CompositePlayerProps {
   containerRef: RefObject<HTMLDivElement | null>;
@@ -12,10 +14,13 @@ interface CompositePlayerProps {
   isPlaying: boolean;
   autoAdvance: boolean;
   docSlidesEnabled: boolean;
-  isShowingSlide: boolean;
-  isSlideLeaving: boolean;
-  isFadingOut: boolean;
+  activeSlide: DocumentarySlide | null;
+  slideIndex: number;
+  slideCount: number;
+  slidePhase: SlidePhase;
   slideProgressPct: number;
+  isFadingOut: boolean;
+  featuredCreators: string[];
   playbackRate: number;
   t: Translations;
   onTogglePlay: () => void;
@@ -38,10 +43,13 @@ export function CompositePlayer({
   isPlaying,
   autoAdvance,
   docSlidesEnabled,
-  isShowingSlide,
-  isSlideLeaving,
-  isFadingOut,
+  activeSlide,
+  slideIndex,
+  slideCount,
+  slidePhase,
   slideProgressPct,
+  isFadingOut,
+  featuredCreators,
   playbackRate,
   t,
   onTogglePlay,
@@ -73,6 +81,15 @@ export function CompositePlayer({
 
   const compositeElapsed = elapsedBeforeActive + activeClipElapsed;
 
+  const isShowingSlide = Boolean(activeSlide);
+  const slideEyebrow =
+    activeSlide?.eyebrow ||
+    (activeSlide?.kind === 'outro'
+      ? ''
+      : `${t.chapterLabel} ${String(activeClipIndex + 1).padStart(2, '0')} / ${String(
+          enabledClips.length
+        ).padStart(2, '0')}`);
+
   return (
     <div className="player-card">
       <div className="player-topbar">
@@ -101,41 +118,62 @@ export function CompositePlayer({
         <div ref={containerRef} />
         <div className={`player-fade-curtain ${isFadingOut ? 'active' : ''}`} />
 
-        {isShowingSlide && activeClip && (
+        {activeSlide && (
           <div
-            className={`doc-slide-overlay ${isSlideLeaving ? 'leaving' : ''}`}
+            className={`doc-slide-overlay kind-${activeSlide.kind} ${
+              slidePhase === 'fading-out' ? 'leaving' : ''
+            }`}
             role="region"
-            aria-label="Chapter Transition"
+            aria-label="Documentary Narrative Slide"
           >
-            <div
-              className="doc-slide-bg-thumb"
-              style={{ backgroundImage: `url(${activeClip.thumbnailUrl})` }}
-            />
+            {activeClip && (
+              <div
+                className="doc-slide-bg-thumb"
+                style={{ backgroundImage: `url(${activeClip.thumbnailUrl})` }}
+              />
+            )}
             <div className="doc-slide-vignette" />
 
-            <div className="doc-slide-content">
-              <span className="doc-slide-chapter">
-                {t.chapterLabel} {String(activeClipIndex + 1).padStart(2, '0')} /{' '}
-                {String(enabledClips.length).padStart(2, '0')}
-              </span>
+            <div
+              key={`${activeClip?.id || 'outro'}-${slideIndex}-${activeSlide.headline}`}
+              className={`doc-slide-content ${
+                slidePhase === 'fading-between' ? 'fading-between' : ''
+              }`}
+            >
+              {slideEyebrow && <span className="doc-slide-chapter">{slideEyebrow}</span>}
 
               <div className="doc-slide-divider" />
 
-              <h3 className="doc-slide-question">
-                {activeClip.bridgeQuestion || activeClip.clipTitle}
-              </h3>
+              <h3 className="doc-slide-question">{activeSlide.headline}</h3>
 
-              {activeClip.bridgeText && (
-                <p className="doc-slide-text">{activeClip.bridgeText}</p>
+              {activeSlide.body && <p className="doc-slide-text">{activeSlide.body}</p>}
+
+              {activeSlide.kind === 'outro' && featuredCreators.length > 0 && (
+                <div className="doc-slide-credits">
+                  AIvideON · {featuredCreators.join(' · ')}
+                </div>
               )}
             </div>
 
-            <div className="doc-slide-progress-track">
-              <div
-                className="doc-slide-progress-fill"
-                style={{ width: `${Math.min(100, Math.max(0, slideProgressPct))}%` }}
-              />
-            </div>
+            {slideCount > 1 && (
+              <div className="doc-slide-dots" aria-hidden="true">
+                {Array.from({ length: slideCount }).map((_, idx) => (
+                  <span
+                    key={idx}
+                    className={`doc-slide-dot ${idx === slideIndex ? 'active' : ''}`}
+                  />
+                ))}
+              </div>
+            )}
+
+            {activeSlide.kind !== 'outro' && (
+              <div className="doc-slide-progress-track">
+                <div
+                  className="doc-slide-progress-fill"
+                  style={{ width: `${Math.min(100, Math.max(0, slideProgressPct))}%` }}
+                />
+              </div>
+            )}
           </div>
         )}
       </div>
