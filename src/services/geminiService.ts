@@ -28,6 +28,24 @@ function getClient(apiKey: string): GoogleGenAI {
   });
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = window.setTimeout(() => {
+      reject(new Error(`Timeout after ${ms}ms (${label})`));
+    }, ms);
+    promise.then(
+      (val) => {
+        window.clearTimeout(timer);
+        resolve(val);
+      },
+      (err) => {
+        window.clearTimeout(timer);
+        reject(err);
+      }
+    );
+  });
+}
+
 async function callWithRetry<T>(
   fn: (activeModel: string) => Promise<T>,
   primaryModel: string
@@ -40,11 +58,15 @@ async function callWithRetry<T>(
   let lastErr: unknown;
   for (let i = 0; i < modelsToTry.length; i++) {
     try {
-      return await fn(modelsToTry[i]);
+      return await withTimeout(fn(modelsToTry[i]), 55000, modelsToTry[i]);
     } catch (err) {
       lastErr = err;
       const msg = err instanceof Error ? err.message : String(err);
-      const isTransient = msg.includes('503') || msg.includes('429') || msg.includes('UNAVAILABLE');
+      const isTransient =
+        msg.includes('503') ||
+        msg.includes('429') ||
+        msg.includes('UNAVAILABLE') ||
+        msg.includes('Timeout');
       if (!isTransient || i === modelsToTry.length - 1) {
         throw err;
       }
@@ -66,27 +88,32 @@ export async function generateSearchQueries(
   model: string
 ): Promise<string[]> {
   const ai = getClient(geminiApiKey);
+  const fastModel = model === 'gemini-3.8-flash' ? 'gemini-3.5-flash-lite' : model;
 
   try {
-    const response = await ai.models.generateContent({
-      model,
-      contents: `You are a YouTube research assistant. Given a user's learning goal, generate 2 concise, high-signal YouTube search queries that will find the best creator tutorials, demos, feature breakdowns, or tips & tricks on YouTube. Prefer English search terms for technical/AI topics unless the topic is specifically Greek.
+    const response = await withTimeout(
+      ai.models.generateContent({
+        model: fastModel,
+        contents: `You are a YouTube research assistant. Given a user's learning goal, generate 2 concise, high-signal YouTube search queries that will find the best creator tutorials, demos, feature breakdowns, or walking/drone tours on YouTube. Prefer English search terms unless the topic is specifically Greek.
 
 User query: "${userQuery}"`,
-      config: {
-        responseMimeType: 'application/json',
-        responseSchema: {
-          type: Type.OBJECT,
-          properties: {
-            searchQueries: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: {
+            type: Type.OBJECT,
+            properties: {
+              searchQueries: {
+                type: Type.ARRAY,
+                items: { type: Type.STRING },
+              },
             },
+            required: ['searchQueries'],
           },
-          required: ['searchQueries'],
         },
-      },
-    });
+      }),
+      10000,
+      'search-planning'
+    );
 
     const parsed = JSON.parse(response.text || '{}');
     if (Array.isArray(parsed.searchQueries) && parsed.searchQueries.length > 0) {
