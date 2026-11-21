@@ -22,7 +22,10 @@ interface RawClipCandidate extends ExtractedSegment {
 }
 
 function getClient(apiKey: string): GoogleGenAI {
-  return new GoogleGenAI({ apiKey: apiKey.trim() });
+  return new GoogleGenAI({
+    apiKey: apiKey.trim(),
+    httpOptions: { apiVersion: 'v1beta' },
+  });
 }
 
 function languageInstruction(language: Language): string {
