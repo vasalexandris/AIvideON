@@ -35,7 +35,7 @@ const STORAGE_LANG_KEY = 'aivideon_lang_v1';
 const DEFAULT_SETTINGS: AppSettings = {
   geminiApiKey: '',
   youtubeApiKey: '',
-  geminiModel: 'gemini-2.5-flash',
+  geminiModel: 'gemini-3.8-flash',
   maxVideosToAnalyze: 4,
   targetClipCount: 6,
 };
@@ -49,7 +49,12 @@ export function App() {
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
       const raw = localStorage.getItem(STORAGE_SETTINGS_KEY);
-      return raw ? { ...DEFAULT_SETTINGS, ...JSON.parse(raw) } : DEFAULT_SETTINGS;
+      if (!raw) return DEFAULT_SETTINGS;
+      const parsed = { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+      if (parsed.geminiModel === 'gemini-2.5-flash' || parsed.geminiModel === 'gemini-2.0-flash') {
+        parsed.geminiModel = 'gemini-3.8-flash';
+      }
+      return parsed;
     } catch {
       return DEFAULT_SETTINGS;
     }
