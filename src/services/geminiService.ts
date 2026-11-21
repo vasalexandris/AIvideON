@@ -269,14 +269,15 @@ export async function synthesizeClipsIntoLesson(
       (activeModel) =>
         ai.models.generateContent({
           model: activeModel,
-          contents: `You are an expert documentary director, curriculum designer, and video editor.
-The user asked: "${userQuery}"
-Below are candidate video clips extracted from multiple YouTube videos.
-Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant clips and order them into the most logical, educational viewing sequence (e.g. Overview/Concept -> Implementation/Demo -> Pro Tips/Pitfalls) so watching them back-to-back feels like one cohesive documentary.
+          contents: `You are an acclaimed documentary film director, narrator, and editor.
+The viewer asked to explore: "${userQuery}"
 
-For EACH selected clip in orderedClipIds, also write a documentary interstitial slide in "clipTransitions":
-- "bridgeQuestion": A short, intriguing documentary hook question or chapter prompt (max 12 words) shown before the clip plays.
-- "bridgeText": 1-2 concise sentences connecting what the viewer just saw (or introducing the topic for the first clip) to what they are about to discover in this next clip.
+Below are raw video segments extracted from YouTube. Act like a real film editor:
+1. Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant shots/segments and order them with cinematic pacing (e.g., Establishing/Wide Shot or Hook -> Historical/Technical Context -> Close-up/Detail or Action -> Memorable Finale).
+2. For EACH selected clip in orderedClipIds, write a cinematic title-card / narration slide in "clipTransitions" that will appear on screen right before the footage plays:
+   - "bridgeQuestion": A short, evocative documentary chapter headline or intriguing question (3 to 8 words, e.g., "The Clock That Survived an Empire" or "Walking the Historic Streets of Westminster").
+   - "bridgeText": 1-2 atmospheric, informative documentary narration sentences (with real facts, dates, or storytelling) that set the scene for the footage about to appear.
+   - CRITICAL STYLE RULE: NEVER use meta-language like "This clip shows", "In this video", "The creator explains", "Αυτό το απόσπασμα δείχνει", or "Στο βίντεο βλέπουμε". Write pure, immersive documentary narration as if spoken by a narrator before the shot fades in.
 
 ${languageInstruction(language)}
 

@@ -1120,96 +1120,115 @@ a {
   position: absolute;
   inset: 0;
   z-index: 20;
-  background: radial-gradient(circle at 50% 30%, #191e28 0%, #080a0e 100%);
+  background: radial-gradient(circle at 50% 35%, #161b24 0%, #050608 100%);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: clamp(1.25rem, 4vw, 3rem);
+  padding: clamp(1.5rem, 5vw, 3.5rem);
   text-align: center;
   overflow: hidden;
-  animation: slideFadeIn 0.35s ease-out;
+  opacity: 1;
+  transition: opacity 0.7s ease-in-out;
+  animation: docSlideFadeIn 0.65s ease-out forwards;
 }
 
-@keyframes slideFadeIn {
+.doc-slide-overlay.leaving {
+  opacity: 0;
+  pointer-events: none;
+}
+
+@keyframes docSlideFadeIn {
   from {
     opacity: 0;
-    transform: scale(1.015);
   }
   to {
     opacity: 1;
-    transform: scale(1);
   }
 }
 
 .doc-slide-bg-thumb {
   position: absolute;
-  inset: -20px;
+  inset: -24px;
   background-size: cover;
   background-position: center;
-  filter: blur(24px) saturate(0.7);
-  opacity: 0.14;
+  filter: blur(28px) saturate(0.55) brightness(0.65);
+  opacity: 0.22;
   pointer-events: none;
+  animation: docKenBurns 6.5s ease-out forwards;
+}
+
+@keyframes docKenBurns {
+  from {
+    transform: scale(1.08);
+  }
+  to {
+    transform: scale(1);
+  }
+}
+
+.doc-slide-vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(0, 0, 0, 0.78) 100%);
+  pointer-events: none;
+  z-index: 1;
 }
 
 .doc-slide-content {
   position: relative;
   z-index: 2;
-  max-width: 660px;
+  max-width: 680px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.9rem;
+  gap: 1.05rem;
+  animation: docTextRise 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes docTextRise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .doc-slide-chapter {
   font-family: var(--font-mono);
-  font-size: 0.74rem;
+  font-size: 0.7rem;
   font-weight: 600;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.24em;
   text-transform: uppercase;
-  color: var(--accent-text);
-  background: rgba(249, 115, 22, 0.12);
-  border: 1px solid rgba(249, 115, 22, 0.28);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
+  color: rgba(253, 186, 116, 0.85);
+}
+
+.doc-slide-divider {
+  width: 42px;
+  height: 1px;
+  background: rgba(249, 115, 22, 0.55);
 }
 
 .doc-slide-question {
   margin: 0;
-  font-size: clamp(1.25rem, 2.8vw, 1.85rem);
+  font-size: clamp(1.3rem, 3vw, 2.05rem);
   font-weight: 800;
   letter-spacing: -0.02em;
-  line-height: 1.25;
-  color: #ffffff;
+  line-height: 1.24;
+  color: #f8fafc;
+  text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
 }
 
 .doc-slide-text {
   margin: 0;
-  font-size: clamp(0.88rem, 1.5vw, 1.02rem);
-  line-height: 1.6;
+  font-size: clamp(0.92rem, 1.55vw, 1.08rem);
+  line-height: 1.68;
   color: #cbd5e1;
   max-width: 580px;
-}
-
-.doc-slide-upnext {
-  margin-top: 0.25rem;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 999px;
-  padding: 0.32rem 0.85rem;
-  font-size: 0.76rem;
-  color: var(--text-secondary);
-}
-
-.doc-slide-actions {
-  margin-top: 0.4rem;
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
+  font-weight: 400;
 }
 
 .doc-slide-progress-track {
@@ -1217,14 +1236,15 @@ a {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.1);
+  height: 2px;
+  background: rgba(255, 255, 255, 0.06);
   z-index: 3;
 }
 
 .doc-slide-progress-fill {
   height: 100%;
-  background: var(--accent);
+  background: rgba(249, 115, 22, 0.65);
   transition: width 0.1s linear;
 }
+
 

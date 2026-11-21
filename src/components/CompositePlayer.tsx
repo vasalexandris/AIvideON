@@ -13,7 +13,7 @@ interface CompositePlayerProps {
   autoAdvance: boolean;
   docSlidesEnabled: boolean;
   isShowingSlide: boolean;
-  slidePaused: boolean;
+  isSlideLeaving: boolean;
   slideProgressPct: number;
   playbackRate: number;
   t: Translations;
@@ -25,7 +25,6 @@ interface CompositePlayerProps {
   onToggleAutoAdvance: (next: boolean) => void;
   onToggleDocSlides: (next: boolean) => void;
   onPlayNowFromSlide: () => void;
-  onToggleSlidePause: () => void;
   onChangePlaybackRate: (rate: number) => void;
 }
 
@@ -39,7 +38,7 @@ export function CompositePlayer({
   autoAdvance,
   docSlidesEnabled,
   isShowingSlide,
-  slidePaused,
+  isSlideLeaving,
   slideProgressPct,
   playbackRate,
   t,
@@ -51,7 +50,6 @@ export function CompositePlayer({
   onToggleAutoAdvance,
   onToggleDocSlides,
   onPlayNowFromSlide,
-  onToggleSlidePause,
   onChangePlaybackRate,
 }: CompositePlayerProps) {
   const totalCompositeSeconds = enabledClips.reduce(
@@ -101,17 +99,24 @@ export function CompositePlayer({
         <div ref={containerRef} />
 
         {isShowingSlide && activeClip && (
-          <div className="doc-slide-overlay" role="region" aria-label="Chapter Transition">
+          <div
+            className={`doc-slide-overlay ${isSlideLeaving ? 'leaving' : ''}`}
+            role="region"
+            aria-label="Chapter Transition"
+          >
             <div
               className="doc-slide-bg-thumb"
               style={{ backgroundImage: `url(${activeClip.thumbnailUrl})` }}
             />
+            <div className="doc-slide-vignette" />
 
             <div className="doc-slide-content">
               <span className="doc-slide-chapter">
                 {t.chapterLabel} {String(activeClipIndex + 1).padStart(2, '0')} /{' '}
                 {String(enabledClips.length).padStart(2, '0')}
               </span>
+
+              <div className="doc-slide-divider" />
 
               <h3 className="doc-slide-question">
                 {activeClip.bridgeQuestion || activeClip.clipTitle}
@@ -120,38 +125,6 @@ export function CompositePlayer({
               {activeClip.bridgeText && (
                 <p className="doc-slide-text">{activeClip.bridgeText}</p>
               )}
-
-              <div className="doc-slide-upnext">
-                <span>{t.upNextLabel}:</span>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  {activeClip.channelTitle}
-                </strong>
-                <span className="clip-range-mono">
-                  {formatTime(activeClip.startSeconds)} – {formatTime(activeClip.endSeconds)}
-                </span>
-              </div>
-
-              <div className="doc-slide-actions">
-                <button
-                  type="button"
-                  id="slide-play-now-btn"
-                  className="btn btn-primary"
-                  onClick={onPlayNowFromSlide}
-                >
-                  <Play size={15} fill="currentColor" />
-                  <span>{t.playNow}</span>
-                </button>
-
-                <button
-                  type="button"
-                  id="slide-pause-btn"
-                  className="btn btn-ghost"
-                  onClick={onToggleSlidePause}
-                >
-                  {slidePaused ? <Play size={14} /> : <Pause size={14} />}
-                  <span>{slidePaused ? t.resumeSlide : t.pauseSlide}</span>
-                </button>
-              </div>
             </div>
 
             <div className="doc-slide-progress-track">

@@ -85,7 +85,7 @@ export function App() {
   const [playbackRate, setPlaybackRate] = useState(1);
   const [docSlidesEnabled, setDocSlidesEnabled] = useState(true);
   const [isShowingSlide, setIsShowingSlide] = useState(false);
-  const [slidePaused, setSlidePaused] = useState(false);
+  const [isSlideLeaving, setIsSlideLeaving] = useState(false);
   const [slideProgressPct, setSlideProgressPct] = useState(0);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -141,11 +141,12 @@ export function App() {
       if (showSlideIfEnabled && docSlidesEnabled && hasBridge) {
         setAutoPlayOnClipChange(false);
         setActiveClipId(clipId);
-        setSlidePaused(false);
+        setIsSlideLeaving(false);
         setSlideProgressPct(0);
         setIsShowingSlide(true);
       } else {
         setIsShowingSlide(false);
+        setIsSlideLeaving(false);
         setAutoPlayOnClipChange(true);
         setActiveClipId(clipId);
       }
@@ -175,11 +176,21 @@ export function App() {
     onClipEnded: handleClipEnded,
   });
 
-  // Countdown timer for Documentary Interstitial Slide (5.5s)
-  useEffect(() => {
-    if (!isShowingSlide || slidePaused) return;
+  const handlePlayNowFromSlide = useCallback(() => {
+    setIsSlideLeaving(true);
+    setSlideProgressPct(100);
+    play();
+    window.setTimeout(() => {
+      setIsShowingSlide(false);
+      setIsSlideLeaving(false);
+    }, 700);
+  }, [play]);
 
-    const SLIDE_DURATION_MS = 5500;
+  // Countdown timer for Documentary Interstitial Slide (5.2s) with smooth cross-fade out
+  useEffect(() => {
+    if (!isShowingSlide || isSlideLeaving) return;
+
+    const SLIDE_DURATION_MS = 5200;
     const TICK_MS = 100;
     const step = (TICK_MS / SLIDE_DURATION_MS) * 100;
 
@@ -188,8 +199,7 @@ export function App() {
         const next = prev + step;
         if (next >= 100) {
           window.clearInterval(timer);
-          setIsShowingSlide(false);
-          play();
+          handlePlayNowFromSlide();
           return 100;
         }
         return next;
@@ -197,13 +207,7 @@ export function App() {
     }, TICK_MS);
 
     return () => window.clearInterval(timer);
-  }, [isShowingSlide, slidePaused, play]);
-
-  const handlePlayNowFromSlide = useCallback(() => {
-    setIsShowingSlide(false);
-    setSlideProgressPct(100);
-    play();
-  }, [play]);
+  }, [isShowingSlide, isSlideLeaving, handlePlayNowFromSlide]);
 
   const handleSelectClip = (index: number, seekOffset?: number) => {
     const target = enabledClips[index];
@@ -211,6 +215,7 @@ export function App() {
 
     if (seekOffset !== undefined) {
       setIsShowingSlide(false);
+      setIsSlideLeaving(false);
       if (target.id === activeClip?.id) {
         seekToSecond(target.startSeconds + seekOffset);
         play();
@@ -248,6 +253,7 @@ export function App() {
       const nextEnabled = updatedClips.find((c) => c.enabled);
       setActiveClipId(nextEnabled ? nextEnabled.id : null);
       setIsShowingSlide(false);
+      setIsSlideLeaving(false);
     }
   };
 
@@ -271,11 +277,12 @@ export function App() {
     setActiveClipId(firstClip?.id ?? null);
     if (docSlidesEnabled && firstClip && (firstClip.bridgeText || firstClip.bridgeQuestion)) {
       setAutoPlayOnClipChange(false);
-      setSlidePaused(false);
+      setIsSlideLeaving(false);
       setSlideProgressPct(0);
       setIsShowingSlide(true);
     } else {
       setIsShowingSlide(false);
+      setIsSlideLeaving(false);
       setAutoPlayOnClipChange(true);
     }
     setPipeline({ stage: 'ready', message: '', videoProgress: [] });
@@ -423,8 +430,17 @@ export function App() {
       );
 
       setCurrentSynthesis(result);
-      setActiveClipId(result.clips[0]?.id ?? null);
+      const firstClip = result.clips[0];
+      setActiveClipId(firstClip?.id ?? null);
       setAutoPlayOnClipChange(false);
+      if (docSlidesEnabled && firstClip && (firstClip.bridgeText || firstClip.bridgeQuestion)) {
+        setIsSlideLeaving(false);
+        setSlideProgressPct(0);
+        setIsShowingSlide(true);
+      } else {
+        setIsShowingSlide(false);
+        setIsSlideLeaving(false);
+      }
       saveToHistory(result);
       setPipeline({ stage: 'ready', message: '', videoProgress: [] });
     } catch (err) {
@@ -521,7 +537,7 @@ export function App() {
                   autoAdvance={autoAdvance}
                   docSlidesEnabled={docSlidesEnabled}
                   isShowingSlide={isShowingSlide}
-                  slidePaused={slidePaused}
+                  isSlideLeaving={isSlideLeaving}
                   slideProgressPct={slideProgressPct}
                   playbackRate={playbackRate}
                   t={t}
@@ -534,6 +550,7 @@ export function App() {
                   onReplayClip={() => {
                     if (activeClip) {
                       setIsShowingSlide(false);
+                      setIsSlideLeaving(false);
                       seekToSecond(activeClip.startSeconds);
                       play();
                     }
@@ -547,7 +564,6 @@ export function App() {
                     }
                   }}
                   onPlayNowFromSlide={handlePlayNowFromSlide}
-                  onToggleSlidePause={() => setSlidePaused((p) => !p)}
                   onChangePlaybackRate={setPlaybackRate}
                 />
 
