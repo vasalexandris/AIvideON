@@ -201,14 +201,19 @@ export async function synthesizeClipsIntoLesson(
   let synthesisTitle = userQuery;
   let executiveSummary = '';
   let keyInsights: string[] = [];
+  const bridgeMap = new Map<string, { bridgeQuestion: string; bridgeText: string }>();
 
   try {
     const response = await ai.models.generateContent({
       model,
-      contents: `You are an expert curriculum designer and video editor.
+      contents: `You are an expert documentary director, curriculum designer, and video editor.
 The user asked: "${userQuery}"
 Below are candidate video clips extracted from multiple YouTube videos.
-Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant clips and order them into the most logical, educational viewing sequence (e.g. Overview/Concept -> Implementation/Demo -> Pro Tips/Pitfalls) so watching them back-to-back feels like one cohesive custom-made video.
+Select the best ${Math.min(targetClipCount, candidates.length)} non-redundant clips and order them into the most logical, educational viewing sequence (e.g. Overview/Concept -> Implementation/Demo -> Pro Tips/Pitfalls) so watching them back-to-back feels like one cohesive documentary.
+
+For EACH selected clip in orderedClipIds, also write a documentary interstitial slide in "clipTransitions":
+- "bridgeQuestion": A short, intriguing documentary hook question or chapter prompt (max 12 words) shown before the clip plays.
+- "bridgeText": 1-2 concise sentences connecting what the viewer just saw (or introducing the topic for the first clip) to what they are about to discover in this next clip.
 
 ${languageInstruction(language)}
 
@@ -229,8 +234,26 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
               type: Type.ARRAY,
               items: { type: Type.STRING },
             },
+            clipTransitions: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  tempId: { type: Type.STRING },
+                  bridgeQuestion: { type: Type.STRING },
+                  bridgeText: { type: Type.STRING },
+                },
+                required: ['tempId', 'bridgeQuestion', 'bridgeText'],
+              },
+            },
           },
-          required: ['synthesisTitle', 'executiveSummary', 'keyInsights', 'orderedClipIds'],
+          required: [
+            'synthesisTitle',
+            'executiveSummary',
+            'keyInsights',
+            'orderedClipIds',
+            'clipTransitions',
+          ],
         },
       },
     });
@@ -246,6 +269,16 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
         orderedIds = filtered;
       }
     }
+    if (Array.isArray(parsed.clipTransitions)) {
+      for (const tr of parsed.clipTransitions) {
+        if (tr?.tempId && (tr.bridgeQuestion || tr.bridgeText)) {
+          bridgeMap.set(tr.tempId, {
+            bridgeQuestion: tr.bridgeQuestion || '',
+            bridgeText: tr.bridgeText || '',
+          });
+        }
+      }
+    }
   } catch (err) {
     console.warn('Synthesis ordering fallback:', err);
   }
@@ -254,21 +287,26 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
   const finalClips: SynthesizedClip[] = orderedIds
     .map((id) => candidateMap.get(id))
     .filter((c): c is RawClipCandidate => Boolean(c))
-    .map((c, index) => ({
-      id: `clip-${Date.now()}-${index}`,
-      videoId: c.video.videoId,
-      videoUrl: c.video.url,
-      videoTitle: c.video.title,
-      channelTitle: c.video.channelTitle,
-      thumbnailUrl: c.video.thumbnailUrl,
-      startSeconds: c.startSeconds,
-      endSeconds: c.endSeconds,
-      clipTitle: c.clipTitle,
-      aiExplanation: c.aiExplanation,
-      transcriptExcerpt: c.transcriptExcerpt,
-      keyTakeaways: c.keyTakeaways || [],
-      enabled: true,
-    }));
+    .map((c, index) => {
+      const bridge = bridgeMap.get(c.tempId);
+      return {
+        id: `clip-${Date.now()}-${index}`,
+        videoId: c.video.videoId,
+        videoUrl: c.video.url,
+        videoTitle: c.video.title,
+        channelTitle: c.video.channelTitle,
+        thumbnailUrl: c.video.thumbnailUrl,
+        startSeconds: c.startSeconds,
+        endSeconds: c.endSeconds,
+        clipTitle: c.clipTitle,
+        aiExplanation: c.aiExplanation,
+        transcriptExcerpt: c.transcriptExcerpt,
+        keyTakeaways: c.keyTakeaways || [],
+        bridgeQuestion: bridge?.bridgeQuestion || c.clipTitle,
+        bridgeText: bridge?.bridgeText || c.aiExplanation,
+        enabled: true,
+      };
+    });
 
   if (!executiveSummary && finalClips.length > 0) {
     executiveSummary = finalClips.map((c) => c.aiExplanation).join(' ');

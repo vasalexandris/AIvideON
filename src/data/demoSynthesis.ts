@@ -65,6 +65,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
             'Η παραγωγή κειμένου γίνεται token-by-token (λέξη-λέξη).',
             'Η τυχαιότητα (temperature) δίνει ποικιλία στις απαντήσεις.',
           ],
+          bridgeQuestion: 'Πώς καταφέρνει ένα πρόγραμμα να γράφει σαν άνθρωπος;',
+          bridgeText:
+            'Όλα ξεκινούν από ένα φαινομενικά απλό παιχνίδι πιθανοτήτων: την πρόβλεψη της αμέσως επόμενης λέξης.',
           enabled: true,
         },
         {
@@ -85,6 +88,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
             'Η εκπαίδευση συμπιέζει terabytes κειμένου σε gigabytes weights.',
             'Το inference (εκτέλεση) είναι ελαφρύ, ενώ το training είναι πανάκριβο.',
           ],
+          bridgeQuestion: 'Και πού αποθηκεύεται όλη αυτή η γνώση;',
+          bridgeText:
+            'Τώρα που είδαμε πώς προβλέπει λέξεις, ο Andrej Karpathy μάς αποκαλύπτει τι υπάρχει στ’ αλήθεια στον σκληρό δίσκο ενός LLM.',
           enabled: true,
         },
         {
@@ -105,6 +111,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
             'Κάθε λέξη ξεκινά ως στατικό vector και εμπλουτίζεται από το context.',
             'Τα πολλαπλά Attention heads παρακολουθούν διαφορετικές σχέσεις ταυτόχρονα.',
           ],
+          bridgeQuestion: 'Πώς όμως καταλαβαίνει το νόημα πίσω από τις λέξεις;',
+          bridgeText:
+            'Μια λέξη αλλάζει σημασία ανάλογα με την πρόταση. Περνάμε στο 3Blue1Brown για να δούμε οπτικά τον μηχανισμό Attention.',
           enabled: true,
         },
         {
@@ -125,6 +134,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
             'Η γνώση προέρχεται από το pre-training.',
             'Η συμπεριφορά "βοηθού" προέρχεται από το fine-tuning & RLHF.',
           ],
+          bridgeQuestion: 'Από ένα «μαθηματικό μοντέλο» σε έναν έξυπνο βοηθό;',
+          bridgeText:
+            'Στο τελευταίο κεφάλαιο επιστρέφουμε στον Karpathy για να δούμε πώς το raw μοντέλο μεταμορφώνεται στον βοηθό με τον οποίο συνομιλούμε.',
           enabled: true,
         },
       ],
@@ -166,6 +178,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
           'Text generation happens token-by-token in a loop.',
           'Sampling temperature controls creativity vs determinism.',
         ],
+        bridgeQuestion: 'How does software learn to write like a human?',
+        bridgeText:
+          'It all begins with a deceptively simple probability game: predicting the very next word in a sequence.',
         enabled: true,
       },
       {
@@ -186,6 +201,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
           'Training compresses terabytes of text into gigabytes of weights.',
           'Inference is lightweight compared to the massive compute of training.',
         ],
+        bridgeQuestion: 'Where does all that world knowledge actually live?',
+        bridgeText:
+          'Now that we know it predicts tokens, Andrej Karpathy reveals what a trained model really looks like on disk.',
         enabled: true,
       },
       {
@@ -206,6 +224,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
           'Words start as static embeddings and become context-rich vectors.',
           'Multiple attention heads track different linguistic relationships in parallel.',
         ],
+        bridgeQuestion: 'How does a model grasp meaning across a whole sentence?',
+        bridgeText:
+          'A word changes meaning depending on its neighbors. Next, 3Blue1Brown visualizes the Attention mechanism at work.',
         enabled: true,
       },
       {
@@ -226,6 +247,9 @@ export function getDemoSynthesis(language: Language): SynthesisResult {
           'Knowledge comes from pre-training.',
           'Assistant behavior comes from supervised fine-tuning & RLHF.',
         ],
+        bridgeQuestion: 'From raw text predictor to helpful AI assistant?',
+        bridgeText:
+          'In our final chapter, we return to Karpathy to see how fine-tuning turns raw compressed knowledge into a conversational partner.',
         enabled: true,
       },
     ],

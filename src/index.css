@@ -1114,3 +1114,117 @@ a {
     transform: rotate(360deg);
   }
 }
+
+/* Documentary Interstitial Slide Overlay inside 16:9 Player Viewport */
+.doc-slide-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: radial-gradient(circle at 50% 30%, #191e28 0%, #080a0e 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: clamp(1.25rem, 4vw, 3rem);
+  text-align: center;
+  overflow: hidden;
+  animation: slideFadeIn 0.35s ease-out;
+}
+
+@keyframes slideFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(1.015);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.doc-slide-bg-thumb {
+  position: absolute;
+  inset: -20px;
+  background-size: cover;
+  background-position: center;
+  filter: blur(24px) saturate(0.7);
+  opacity: 0.14;
+  pointer-events: none;
+}
+
+.doc-slide-content {
+  position: relative;
+  z-index: 2;
+  max-width: 660px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.doc-slide-chapter {
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--accent-text);
+  background: rgba(249, 115, 22, 0.12);
+  border: 1px solid rgba(249, 115, 22, 0.28);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+}
+
+.doc-slide-question {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.8vw, 1.85rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+  color: #ffffff;
+}
+
+.doc-slide-text {
+  margin: 0;
+  font-size: clamp(0.88rem, 1.5vw, 1.02rem);
+  line-height: 1.6;
+  color: #cbd5e1;
+  max-width: 580px;
+}
+
+.doc-slide-upnext {
+  margin-top: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 0.32rem 0.85rem;
+  font-size: 0.76rem;
+  color: var(--text-secondary);
+}
+
+.doc-slide-actions {
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.doc-slide-progress-track {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  z-index: 3;
+}
+
+.doc-slide-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.1s linear;
+}
+

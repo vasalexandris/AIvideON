@@ -43,6 +43,8 @@ export interface SynthesizedClip {
   aiExplanation: string;
   transcriptExcerpt: string;
   keyTakeaways: string[];
+  bridgeQuestion?: string;
+  bridgeText?: string;
   enabled: boolean;
 }
 

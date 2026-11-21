@@ -11,6 +11,10 @@ interface CompositePlayerProps {
   currentSeconds: number;
   isPlaying: boolean;
   autoAdvance: boolean;
+  docSlidesEnabled: boolean;
+  isShowingSlide: boolean;
+  slidePaused: boolean;
+  slideProgressPct: number;
   playbackRate: number;
   t: Translations;
   onTogglePlay: () => void;
@@ -19,6 +23,9 @@ interface CompositePlayerProps {
   onReplayClip: () => void;
   onSelectClip: (index: number, seekOffset?: number) => void;
   onToggleAutoAdvance: (next: boolean) => void;
+  onToggleDocSlides: (next: boolean) => void;
+  onPlayNowFromSlide: () => void;
+  onToggleSlidePause: () => void;
   onChangePlaybackRate: (rate: number) => void;
 }
 
@@ -30,6 +37,10 @@ export function CompositePlayer({
   currentSeconds,
   isPlaying,
   autoAdvance,
+  docSlidesEnabled,
+  isShowingSlide,
+  slidePaused,
+  slideProgressPct,
   playbackRate,
   t,
   onTogglePlay,
@@ -38,6 +49,9 @@ export function CompositePlayer({
   onReplayClip,
   onSelectClip,
   onToggleAutoAdvance,
+  onToggleDocSlides,
+  onPlayNowFromSlide,
+  onToggleSlidePause,
   onChangePlaybackRate,
 }: CompositePlayerProps) {
   const totalCompositeSeconds = enabledClips.reduce(
@@ -85,6 +99,69 @@ export function CompositePlayer({
 
       <div className="player-viewport">
         <div ref={containerRef} />
+
+        {isShowingSlide && activeClip && (
+          <div className="doc-slide-overlay" role="region" aria-label="Chapter Transition">
+            <div
+              className="doc-slide-bg-thumb"
+              style={{ backgroundImage: `url(${activeClip.thumbnailUrl})` }}
+            />
+
+            <div className="doc-slide-content">
+              <span className="doc-slide-chapter">
+                {t.chapterLabel} {String(activeClipIndex + 1).padStart(2, '0')} /{' '}
+                {String(enabledClips.length).padStart(2, '0')}
+              </span>
+
+              <h3 className="doc-slide-question">
+                {activeClip.bridgeQuestion || activeClip.clipTitle}
+              </h3>
+
+              {activeClip.bridgeText && (
+                <p className="doc-slide-text">{activeClip.bridgeText}</p>
+              )}
+
+              <div className="doc-slide-upnext">
+                <span>{t.upNextLabel}:</span>
+                <strong style={{ color: 'var(--text-primary)' }}>
+                  {activeClip.channelTitle}
+                </strong>
+                <span className="clip-range-mono">
+                  {formatTime(activeClip.startSeconds)} – {formatTime(activeClip.endSeconds)}
+                </span>
+              </div>
+
+              <div className="doc-slide-actions">
+                <button
+                  type="button"
+                  id="slide-play-now-btn"
+                  className="btn btn-primary"
+                  onClick={onPlayNowFromSlide}
+                >
+                  <Play size={15} fill="currentColor" />
+                  <span>{t.playNow}</span>
+                </button>
+
+                <button
+                  type="button"
+                  id="slide-pause-btn"
+                  className="btn btn-ghost"
+                  onClick={onToggleSlidePause}
+                >
+                  {slidePaused ? <Play size={14} /> : <Pause size={14} />}
+                  <span>{slidePaused ? t.resumeSlide : t.pauseSlide}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="doc-slide-progress-track">
+              <div
+                className="doc-slide-progress-fill"
+                style={{ width: `${Math.min(100, Math.max(0, slideProgressPct))}%` }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="composite-controls">
@@ -149,10 +226,14 @@ export function CompositePlayer({
               type="button"
               id="play-pause-btn"
               className="icon-btn primary-play"
-              onClick={onTogglePlay}
+              onClick={isShowingSlide ? onPlayNowFromSlide : onTogglePlay}
               disabled={!activeClip}
             >
-              {isPlaying ? <Pause size={16} /> : <Play size={16} fill="currentColor" />}
+              {isPlaying && !isShowingSlide ? (
+                <Pause size={16} />
+              ) : (
+                <Play size={16} fill="currentColor" />
+              )}
             </button>
 
             <button
@@ -180,6 +261,15 @@ export function CompositePlayer({
           </div>
 
           <div className="transport-options">
+            <label className="toggle-label">
+              <input
+                type="checkbox"
+                checked={docSlidesEnabled}
+                onChange={(e) => onToggleDocSlides(e.target.checked)}
+              />
+              <span>{t.docSlides}</span>
+            </label>
+
             <label className="toggle-label">
               <input
                 type="checkbox"

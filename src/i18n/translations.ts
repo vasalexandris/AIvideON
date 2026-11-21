@@ -71,6 +71,12 @@ export interface Translations {
   statusDone: string;
   statusSkipped: string;
   statusError: string;
+  docSlides: string;
+  chapterLabel: string;
+  upNextLabel: string;
+  playNow: string;
+  pauseSlide: string;
+  resumeSlide: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -163,6 +169,12 @@ export const translations: Record<Language, Translations> = {
     statusDone: 'Έτοιμο',
     statusSkipped: 'Χωρίς σχετικό clip',
     statusError: 'Σφάλμα',
+    docSlides: 'Διαφάνειες Ντοκιμαντέρ',
+    chapterLabel: 'ΚΕΦΑΛΑΙΟ',
+    upNextLabel: 'Στη συνέχεια',
+    playNow: 'Προβολή τώρα',
+    pauseSlide: 'Παύση',
+    resumeSlide: 'Συνέχεια',
   },
   en: {
     brandTagline: 'AI Video Synthesis Studio',
@@ -253,6 +265,12 @@ export const translations: Record<Language, Translations> = {
     statusDone: 'Ready',
     statusSkipped: 'No match',
     statusError: 'Error',
+    docSlides: 'Documentary Slides',
+    chapterLabel: 'CHAPTER',
+    upNextLabel: 'Up next',
+    playNow: 'Play now',
+    pauseSlide: 'Pause',
+    resumeSlide: 'Resume',
   },
 };
 
