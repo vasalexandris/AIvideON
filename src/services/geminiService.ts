@@ -50,10 +50,13 @@ async function callWithRetry<T>(
   fn: (activeModel: string) => Promise<T>,
   primaryModel: string
 ): Promise<T> {
-  const modelsToTry =
-    primaryModel === 'gemini-3.8-flash'
-      ? ['gemini-3.8-flash', 'gemini-3.8-flash', 'gemini-3.5-flash-lite']
-      : [primaryModel, primaryModel];
+  const fallbackPool = [
+    primaryModel,
+    'gemini-3.6-flash',
+    'gemini-3.5-flash-lite',
+    'gemini-3-flash-preview',
+  ];
+  const modelsToTry = Array.from(new Set(fallbackPool));
 
   let lastErr: unknown;
   for (let i = 0; i < modelsToTry.length; i++) {
@@ -65,12 +68,13 @@ async function callWithRetry<T>(
       const isTransient =
         msg.includes('503') ||
         msg.includes('429') ||
+        msg.includes('404') ||
         msg.includes('UNAVAILABLE') ||
         msg.includes('Timeout');
       if (!isTransient || i === modelsToTry.length - 1) {
         throw err;
       }
-      await new Promise((r) => setTimeout(r, 1500 * (i + 1)));
+      await new Promise((r) => setTimeout(r, 1500));
     }
   }
   throw lastErr;
