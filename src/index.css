@@ -1321,5 +1321,320 @@ a {
   transition: width 0.1s linear;
 }
 
+/* Documentary vs HTML Presentation View Switcher */
+.view-switcher {
+  display: inline-flex;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 4px;
+  gap: 4px;
+}
+
+.view-switch-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 0.48rem 0.9rem;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.15s ease;
+}
+
+.view-switch-btn:hover {
+  color: var(--text-primary);
+}
+
+.view-switch-btn.active {
+  background: var(--accent);
+  color: #0b0d10;
+  font-weight: 700;
+}
+
+/* Inline HTML Slide Presentation Deck */
+.presentation-shell {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.presentation-toolbar {
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.presentation-toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.presentation-toolbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.presentation-stage {
+  padding: clamp(1.25rem, 3vw, 2.5rem);
+  min-height: 460px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pres-cover-slide {
+  width: 100%;
+  max-width: 820px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.15rem;
+  padding: 1.5rem 0;
+  animation: docTextRise 0.4s ease;
+}
+
+.pres-cover-title {
+  margin: 0;
+  font-size: clamp(1.65rem, 3.4vw, 2.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
+}
+
+.pres-cover-summary {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  max-width: 700px;
+}
+
+.pres-badges-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+  margin: 0.35rem 0;
+}
+
+.pres-creator-pill {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  border: 1px solid rgba(249, 115, 22, 0.25);
+  border-radius: 999px;
+  padding: 0.22rem 0.7rem;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.pres-clip-slide {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  gap: 1.85rem;
+  align-items: start;
+  animation: docTextRise 0.35s ease;
+}
+
+@media (max-width: 960px) {
+  .pres-clip-slide {
+    grid-template-columns: 1fr;
+  }
+}
+
+.pres-video-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pres-video-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #000;
+  border: 1px solid var(--border-subtle);
+}
+
+.pres-video-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.pres-video-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.pres-creator-block {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-primary);
+}
+
+.pres-creator-label {
+  color: var(--text-muted);
+}
+
+.pres-yt-link {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.pres-yt-link:hover {
+  text-decoration: underline;
+}
+
+.pres-text-col {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.pres-slide-heading {
+  margin: 0;
+  font-size: clamp(1.25rem, 2.3vw, 1.65rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.pres-rich-body {
+  margin: 0;
+  font-size: 0.96rem;
+  line-height: 1.72;
+  color: #e2e8f0;
+}
+
+.pres-outro-slide {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  animation: docTextRise 0.35s ease;
+}
+
+.pres-insights-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 0.85rem;
+  margin-top: 0.35rem;
+}
+
+.pres-insight-card {
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 0.95rem 1.05rem;
+}
+
+.pres-insight-card p {
+  margin: 0.4rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.58;
+  color: #e2e8f0;
+}
+
+.pres-insight-num {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-text);
+}
+
+.pres-sources-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.pres-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: var(--bg-canvas);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 0.45rem 0.75rem;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all 0.15s ease;
+}
+
+.pres-source-link strong {
+  color: var(--text-primary);
+}
+
+.pres-source-link:hover {
+  border-color: var(--accent);
+  color: var(--text-primary);
+}
+
+.presentation-footer {
+  padding: 0.85rem 1.25rem;
+  background: var(--bg-elevated);
+  border-top: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.pres-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+}
+
+.pres-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pres-dot.active {
+  width: 22px;
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+
 
 

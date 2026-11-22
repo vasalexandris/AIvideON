@@ -51,6 +51,7 @@ export interface SynthesizedClip {
   clipTitle: string;
   aiExplanation: string;
   transcriptExcerpt: string;
+  detailedSummary?: string;
   keyTakeaways: string[];
   bridgeQuestion?: string;
   bridgeText?: string;

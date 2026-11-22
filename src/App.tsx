@@ -1,8 +1,10 @@
+import { Film, Presentation } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ClipContextCard } from './components/ClipContextCard';
 import { CompositePlayer, type SlidePhase } from './components/CompositePlayer';
 import { Header } from './components/Header';
 import { HistoryDrawer } from './components/HistoryDrawer';
+import { PresentationDeck } from './components/PresentationDeck';
 import { PromptStudio } from './components/PromptStudio';
 import { SettingsModal } from './components/SettingsModal';
 import { SynthesisSidebar } from './components/SynthesisSidebar';
@@ -64,7 +66,8 @@ function computeSlideDurationMs(slide: DocumentarySlide): number {
     .trim()
     .split(/\s+/)
     .filter(Boolean).length;
-  return Math.min(7200, Math.max(3800, 2600 + words * 230));
+  const base = slide.kind === 'title' ? 5000 : 4200;
+  return Math.min(11500, Math.max(6000, base + words * 310));
 }
 
 export function App() {
@@ -105,6 +108,7 @@ export function App() {
     videoProgress: [],
   });
 
+  const [workspaceView, setWorkspaceView] = useState<'documentary' | 'presentation'>('documentary');
   const [currentSynthesis, setCurrentSynthesis] = useState<SynthesisResult | null>(null);
   const [activeClipId, setActiveClipId] = useState<string | null>(null);
   const [autoPlayOnClipChange, setAutoPlayOnClipChange] = useState(false);
@@ -625,9 +629,49 @@ export function App() {
                   </span>
                 </div>
               </div>
+
+              <div className="view-switcher" role="tablist" aria-label="View Mode">
+                <button
+                  type="button"
+                  id="view-documentary-btn"
+                  role="tab"
+                  aria-selected={workspaceView === 'documentary'}
+                  className={`view-switch-btn ${workspaceView === 'documentary' ? 'active' : ''}`}
+                  onClick={() => setWorkspaceView('documentary')}
+                >
+                  <Film size={15} />
+                  <span>{t.viewDocumentary}</span>
+                </button>
+                <button
+                  type="button"
+                  id="view-presentation-btn"
+                  role="tab"
+                  aria-selected={workspaceView === 'presentation'}
+                  className={`view-switch-btn ${workspaceView === 'presentation' ? 'active' : ''}`}
+                  onClick={() => {
+                    pause();
+                    dismissSlidesImmediately();
+                    setWorkspaceView('presentation');
+                  }}
+                >
+                  <Presentation size={15} />
+                  <span>{t.viewPresentation}</span>
+                </button>
+              </div>
             </div>
 
-            <div className="workspace-grid">
+            {workspaceView === 'presentation' && (
+              <PresentationDeck
+                synthesis={currentSynthesis}
+                language={language}
+                t={t}
+              />
+            )}
+
+            <div
+              className="workspace-grid"
+              style={{ display: workspaceView === 'documentary' ? undefined : 'none' }}
+            >
               <div className="player-column">
                 <CompositePlayer
                   containerRef={containerRef}

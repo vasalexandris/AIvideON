@@ -77,6 +77,17 @@ export interface Translations {
   playNow: string;
   pauseSlide: string;
   resumeSlide: string;
+  viewDocumentary: string;
+  viewPresentation: string;
+  openHtmlPage: string;
+  downloadHtml: string;
+  slideOf: string;
+  prevSlide: string;
+  nextSlide: string;
+  presentationCoverLabel: string;
+  presentationOutroLabel: string;
+  sourceCreatorLabel: string;
+  playSegmentHint: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -175,6 +186,17 @@ export const translations: Record<Language, Translations> = {
     playNow: 'Προβολή τώρα',
     pauseSlide: 'Παύση',
     resumeSlide: 'Συνέχεια',
+    viewDocumentary: 'Ντοκιμαντέρ Βίντεο',
+    viewPresentation: 'Παρουσίαση HTML',
+    openHtmlPage: 'Άνοιγμα σε νέα σελίδα',
+    downloadHtml: 'Λήψη HTML',
+    slideOf: 'Διαφάνεια',
+    prevSlide: 'Προηγούμενη',
+    nextSlide: 'Επόμενη',
+    presentationCoverLabel: 'ΔΙΑΔΡΑΣΤΙΚΗ ΠΑΡΟΥΣΙΑΣΗ',
+    presentationOutroLabel: 'ΣΥΜΠΕΡΑΣΜΑΤΑ & ΠΗΓΕΣ',
+    sourceCreatorLabel: 'Δημιουργός / Πηγή',
+    playSegmentHint: 'Επιλεγμένο απόσπασμα',
   },
   en: {
     brandTagline: 'AI Video Synthesis Studio',
@@ -271,6 +293,17 @@ export const translations: Record<Language, Translations> = {
     playNow: 'Play now',
     pauseSlide: 'Pause',
     resumeSlide: 'Resume',
+    viewDocumentary: 'Video Documentary',
+    viewPresentation: 'HTML Presentation',
+    openHtmlPage: 'Open in New Page',
+    downloadHtml: 'Download HTML',
+    slideOf: 'Slide',
+    prevSlide: 'Previous',
+    nextSlide: 'Next',
+    presentationCoverLabel: 'INTERACTIVE PRESENTATION',
+    presentationOutroLabel: 'CONCLUSIONS & SOURCES',
+    sourceCreatorLabel: 'Creator / Source',
+    playSegmentHint: 'Selected segment',
   },
 };
 

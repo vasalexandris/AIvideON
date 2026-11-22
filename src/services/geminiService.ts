@@ -14,6 +14,7 @@ interface ExtractedSegment {
   clipTitle: string;
   aiExplanation: string;
   transcriptExcerpt: string;
+  detailedSummary: string;
   keyTakeaways: string[];
   relevanceScore: number;
 }
@@ -156,8 +157,9 @@ Instructions:
 2. If relevant, extract 1 to 3 of the most valuable, self-contained segments (each ideally 18 to 75 seconds long).
 3. Choose startSeconds and endSeconds carefully on natural sentence pauses or visual scene cuts so clips never feel awkwardly cut off mid-thought.
 4. In "transcriptExcerpt", quote or closely describe what is being said or visually shown in that exact segment.
-5. In "aiExplanation", explain what specific part of the viewer's question this segment answers or illustrates.
-6. In "keyTakeaways", list 2-3 concise bullet points from that segment.`;
+5. In "detailedSummary", write a clear, engaging 3 to 5 sentence written summary of EVERYTHING important explained, demonstrated, or shown in this segment — NOT a raw verbatim transcript, but rich prose that preserves every essential fact, tip, step, or insight for a written HTML slide presentation.
+6. In "aiExplanation", explain concisely what specific part of the viewer's question this segment answers.
+7. In "keyTakeaways", list 2-3 concise bullet points from that segment.`;
 
   const response = await callWithRetry(
     (activeModel) =>
@@ -189,6 +191,7 @@ Instructions:
                     clipTitle: { type: Type.STRING },
                     aiExplanation: { type: Type.STRING },
                     transcriptExcerpt: { type: Type.STRING },
+                    detailedSummary: { type: Type.STRING },
                     keyTakeaways: {
                       type: Type.ARRAY,
                       items: { type: Type.STRING },
@@ -201,6 +204,7 @@ Instructions:
                     'clipTitle',
                     'aiExplanation',
                     'transcriptExcerpt',
+                    'detailedSummary',
                     'keyTakeaways',
                     'relevanceScore',
                   ],
@@ -290,13 +294,15 @@ Your directing & editing job:
 2. For EACH selected clip in "orderedClipIds", craft its "introSlides" (an array of **1 or 2 sequential slides** that play one after the other right before that footage fades in):
    - For the **FIRST clip** in the documentary: ALWAYS create **2 sequential slides**:
      * Slide 1 (kind: "title"): The opening documentary title card — an evocative main title in "headline" and a crisp 1-sentence thesis/hook in "body".
-     * Slide 2 (kind: "question" or "narrative"): Sets up the very first sub-question or opening premise (e.g. a sharp question or a factual/historical introduction) whose answer is the video clip about to play.
+     * Slide 2 (kind: "question" or "narrative"): Sets up the very first sub-question or opening premise AND naturally introduces the creator/channel whose footage follows (for proper documentary attribution & copyright transparency, e.g., in Greek: "Το κανάλι [channelTitle] εξηγεί..." / "Ο [Creator] από το κανάλι [channelTitle] μας δείχνει...", or in English: "[Creator/Channel] explains..." / "[channelTitle] captures...").
    - For **subsequent clips (#2 to #N)**: Create **1 or 2 sequential slides** that weave a real narrative thread from what the viewer JUST experienced in the previous clip into the next angle!
-     * Use 1 slide for a crisp pivot question or smooth transition (e.g., "Τι πίστευε όμως ο ... για αυτό;" or "Πέρα από την αρχιτεκτονική που μόλις είδαμε, η πόλη κρύβει μια έντονη καθημερινή ζωή...").
-     * Use 2 slides when shifting to a major new sub-question (Slide 1 kind: "narrative" reflects/bridges from the previous beat, Slide 2 kind: "question" poses the intriguing next question right before the footage fades in).
-   - Keep each slide concise and cinematic: "headline" 3–11 words; "body" 0–2 crisp, readable sentences (optional on punchy question slides if the question speaks for itself).
+     * Whenever switching to a different channel/creator (or introducing a new expert voice), prefer **2 sequential slides**:
+       - Slide 1 (kind: "question" or "narrative"): Poses the thematic bridge or intriguing next sub-question (e.g., "Τι συμβαίνει όμως όταν..." or "Πέρα από την αρχιτεκτονική που μόλις είδαμε, η πόλη διαθέτει και έντονη κοινωνική ζωή...").
+       - Slide 2 (kind: "narrative"): Naturally introduces the creator/channel who answers or captures it (e.g., "Ο Chris από το κανάλι ChrisTechTips αναλύει..." or "Το κανάλι TheSkyExplorer καταγράφει από ψηλά..."), connecting smoothly to the footage.
+     * When continuing from the same channel, 1 crisp pivot slide (kind: "question" or "narrative") is great.
+   - Keep each slide concise and cinematic: "headline" 3–11 words; "body" 0–2 crisp, readable sentences.
 3. Also create a single closing "outroSlide" (kind: "outro") that appears after the final clip fades out — a memorable concluding thought that ties the whole answer together.
-4. CRITICAL STYLE RULE: NEVER break the fourth wall. NEVER write meta-phrases like "This clip shows", "In this video", "The creator explains", "Αυτό το απόσπασμα δείχνει", "Στο επόμενο βίντεο", or "Ο δημιουργός αναλύει". Write pure, immersive documentary narration with real facts, curiosity, and seamless story flow.
+4. CRITICAL STYLE RULE: Do NOT write robotic meta-talk like "This clip shows" or "Αυτό το απόσπασμα δείχνει". Instead, introduce creators/channels naturally the way a real documentary narrator introduces an expert, filmmaker, or guide ("Ο Andrej Karpathy εξηγεί...", "Το κανάλι 3Blue1Brown οπτικοποιεί...", "Ο John από το κανάλι JohnTech αναφέρει...").
 
 ${languageInstruction(language)}
 
@@ -430,6 +436,7 @@ ${JSON.stringify(candidateSummaries, null, 2)}`,
         clipTitle: c.clipTitle,
         aiExplanation: c.aiExplanation,
         transcriptExcerpt: c.transcriptExcerpt,
+        detailedSummary: c.detailedSummary || c.aiExplanation,
         keyTakeaways: c.keyTakeaways || [],
         bridgeQuestion: primarySlide.headline,
         bridgeText: primarySlide.body || '',
